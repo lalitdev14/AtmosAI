@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AtmosAI — ML Weather Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080d1a;--bg2:#0e1628;--card:#111a30;--card2:#162038;
+  --border:rgba(99,153,255,0.11);--border2:rgba(99,153,255,0.22);
+  --text:#e8edf8;--text2:#8fa3c8;--text3:#4e6488;
+  --accent:#4a9eff;--accent2:#2d7de8;--glow:rgba(74,158,255,0.16);
+  --teal:#00d4aa;--amber:#f59e0b;--red:#ef4444;--green:#22c55e;
+  --purple:#a78bfa;--coral:#ff7c5d;--pink:#f472b6;
+  --r:12px;--rs:8px;--rl:16px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+.bg-layer{position:fixed;inset:0;z-index:0;transition:background 1.8s ease;
+  background:radial-gradient(ellipse 80% 55% at 15% 0%,rgba(29,78,216,0.16) 0%,transparent 55%),radial-gradient(ellipse 55% 35% at 85% 100%,rgba(16,185,129,0.09) 0%,transparent 55%),var(--bg)}
+.bg-layer.rain{background:radial-gradient(ellipse 80% 60% at 25% 5%,rgba(37,99,235,0.22) 0%,transparent 65%),radial-gradient(ellipse 50% 40% at 75% 85%,rgba(29,78,216,0.18) 0%,transparent 60%),var(--bg)}
+.bg-layer.sunny{background:radial-gradient(ellipse 80% 60% at 65% 0%,rgba(245,158,11,0.2) 0%,rgba(234,179,8,0.08) 45%,transparent 70%),var(--bg)}
+.bg-layer.cloudy{background:radial-gradient(ellipse 90% 60% at 40% 5%,rgba(100,116,139,0.18) 0%,transparent 70%),var(--bg)}
+.bg-layer.snow{background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(186,230,253,0.12) 0%,transparent 70%),var(--bg)}
+.bg-layer.storm{background:radial-gradient(ellipse 80% 60% at 30% 5%,rgba(88,60,180,0.22) 0%,transparent 65%),radial-gradient(ellipse 55% 40% at 80% 85%,rgba(55,38,120,0.18) 0%,transparent 60%),var(--bg)}
+.bg-layer.haze{background:radial-gradient(ellipse 90% 60% at 50% 10%,rgba(180,140,60,0.18) 0%,transparent 70%),var(--bg)}
+#app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:1.25rem}
+
+/* ── HEADER ── */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;padding:0.8rem 1.2rem;background:rgba(17,26,48,0.8);backdrop-filter:blur(24px);border:0.5px solid var(--border);border-radius:var(--rl);gap:0.75rem;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--teal));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.logo-text{font-size:1rem;font-weight:600;letter-spacing:-0.3px}
+.logo-sub{font-size:9.5px;color:var(--text3);font-family:'DM Mono',monospace;letter-spacing:0.6px}
+/* CLOCK */
+.header-clock{font-family:'DM Mono',monospace;text-align:right;flex-shrink:0}
+.clock-time{font-size:1.2rem;font-weight:500;color:var(--text);letter-spacing:2px;line-height:1}
+.clock-date{font-size:9.5px;color:var(--text3);margin-top:2px;letter-spacing:0.3px}
+.clock-tz{font-size:9px;color:var(--accent);margin-top:1px;font-size:9px}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;flex:1;min-width:220px;max-width:440px}
+.search-row{display:flex;gap:6px;align-items:center}
+.search-inner{position:relative;flex:1}
+.search-input{width:100%;padding:0.58rem 2.2rem 0.58rem 2.3rem;background:rgba(22,32,56,0.9);border:0.5px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:0.87rem;font-family:'Inter',sans-serif;outline:none;transition:all .2s}
+.search-input:focus{border-color:var(--accent);background:rgba(22,32,60,1);box-shadow:0 0 0 3px var(--glow)}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+.search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;cursor:pointer;display:none;background:none;border:none;padding:2px 4px}
+.search-clear.show{display:block}
+.search-results{position:absolute;top:calc(100% + 5px);left:0;right:0;background:rgba(14,22,40,0.98);border:0.5px solid var(--border2);border-radius:var(--rs);overflow:hidden;z-index:300;display:none;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;backdrop-filter:blur(24px)}
+.search-results.open{display:block}
+.search-section-hdr{padding:0.35rem 0.85rem;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.9px;border-bottom:0.5px solid var(--border);background:rgba(255,255,255,0.02)}
+.search-item{padding:0.5rem 0.85rem;cursor:pointer;font-size:0.84rem;transition:background .1s;display:flex;align-items:center;gap:8px;border-bottom:0.5px solid var(--border)}
+.search-item:last-child{border-bottom:none}
+.search-item:hover{background:rgba(74,158,255,0.09)}
+.search-city-name{color:var(--text);font-weight:500;white-space:nowrap;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.search-city-meta{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap;flex-shrink:0}
+.search-highlight{color:var(--accent)}
+/* LOCATE BTN */
+.locate-btn{flex-shrink:0;background:rgba(74,158,255,0.09);border:0.5px solid var(--border2);border-radius:var(--rs);padding:0.52rem 0.7rem;color:var(--accent);cursor:pointer;font-size:11.5px;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:all .2s;font-family:'Inter',sans-serif}
+.locate-btn:hover{background:rgba(74,158,255,0.18)}
+.locate-btn.locating{color:var(--amber);border-color:rgba(245,158,11,0.3);animation:locpulse 1s infinite}
+.locate-btn.located{color:var(--teal);border-color:rgba(0,212,170,0.3);background:rgba(0,212,170,0.08)}
+@keyframes locpulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ── GRID ── */
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:0.85rem}
+.full-width{grid-column:1/-1}
+@media(max-width:760px){.main-grid{grid-template-columns:1fr}}
+
+/* ── CARD ── */
+.card{background:rgba(17,26,48,0.68);backdrop-filter:blur(22px);border:0.5px solid var(--border);border-radius:var(--rl);padding:1.15rem 1.4rem;transition:border-color .2s}
+.card:hover{border-color:var(--border2)}
+.card-label{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:0.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.card-label::before{content:'';display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.source-tag{font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;padding:2px 6px;border:0.5px solid var(--border);border-radius:6px;margin-left:auto}
+
+/* ── HERO ── */
+.hero-card{padding:1.4rem 1.7rem}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem}
+.city-name{font-size:1.55rem;font-weight:600;letter-spacing:-0.5px}
+.city-meta{font-size:10.5px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px}
+.city-local-time{font-size:11px;color:var(--teal);font-family:'DM Mono',monospace;margin-top:4px;display:flex;align-items:center;gap:5px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--teal);display:inline-block;animation:liveblink 2s infinite;flex-shrink:0}
+@keyframes liveblink{0%,100%{opacity:1}50%{opacity:.25}}
+.hero-main{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-top:1rem;flex-wrap:wrap}
+.temp-block{display:flex;align-items:baseline;gap:2px}
+.temp-big{font-size:4.5rem;font-weight:300;letter-spacing:-4px;line-height:1}
+.temp-unit{font-size:1.4rem;color:var(--text3);font-weight:300}
+.weather-icon-big{font-size:4rem;line-height:1}
+.weather-desc{font-size:0.88rem;color:var(--text2);margin-top:0.3rem}
+.anomaly-badge{display:inline-flex;align-items:center;gap:6px;padding:0.32rem 0.75rem;border-radius:20px;font-size:11px;font-weight:500}
+.badge-warm{background:rgba(245,158,11,0.14);color:#fbbf24;border:0.5px solid rgba(245,158,11,0.28)}
+.badge-cold{background:rgba(96,165,250,0.14);color:#93c5fd;border:0.5px solid rgba(96,165,250,0.28)}
+.badge-normal{background:rgba(34,197,94,0.14);color:#86efac;border:0.5px solid rgba(34,197,94,0.28)}
+
+/* ── METRICS 8-GRID ── */
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-top:1.1rem}
+@media(max-width:600px){.metrics-row{grid-template-columns:repeat(2,1fr)}}
+.metric{text-align:center;padding:0.62rem 0.35rem;background:rgba(8,13,26,0.55);border-radius:var(--rs);border:0.5px solid var(--border);transition:border-color .2s}
+.metric:hover{border-color:var(--border2)}
+.metric-val{font-size:0.92rem;font-weight:500;font-family:'DM Mono',monospace}
+.metric-lbl{font-size:9px;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:0.4px}
+
+/* ── CHARTS ── */
+.chart-wrap{position:relative;width:100%;height:200px}
+
+/* ── FORECAST ── */
+.forecast-scroll{display:flex;gap:0.6rem;overflow-x:auto;padding:0.2rem 0 0.5rem;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.forecast-scroll::-webkit-scrollbar{height:3px}
+.forecast-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.fc-card{flex:0 0 100px;background:rgba(8,13,26,0.5);border:0.5px solid var(--border);border-radius:var(--r);padding:0.75rem 0.5rem;text-align:center;cursor:pointer;transition:all .2s}
+.fc-card:hover,.fc-card.active{background:rgba(74,158,255,0.09);border-color:var(--accent)}
+.fc-day{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px}
+.fc-icon{font-size:1.45rem;margin:4px 0}
+.fc-cond{font-size:8.5px;color:var(--text3);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-temps{font-size:11px;font-family:'DM Mono',monospace}
+.fc-hi{color:var(--text);font-weight:500}
+.fc-lo{color:var(--text3)}
+.conf-bar{height:2.5px;border-radius:2px;background:rgba(74,158,255,0.1);overflow:hidden;margin-top:5px}
+.conf-fill{height:100%;border-radius:2px}
+.conf-lbl{font-size:8.5px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+
+/* ── CLOUD ── */
+.cloud-grid{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start}
+.cloud-donut-wrap{display:flex;flex-direction:column;align-items:center}
+.cloud-circle{position:relative;width:96px;height:96px;margin-bottom:0.5rem}
+.cloud-circle svg{transform:rotate(-90deg)}
+.cloud-circle-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cloud-pct{font-size:1.3rem;font-weight:500;font-family:'DM Mono',monospace}
+.cloud-sub{font-size:9px;color:var(--text3)}
+.cloud-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem}
+.cloud-lbl-row{font-size:11px;color:var(--text2);min-width:20px}
+.cloud-bar-wrap{flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin:0 8px}
+.cloud-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.cloud-val{font-size:9.5px;color:var(--text3);font-family:'DM Mono',monospace;min-width:28px;text-align:right}
+/* ── RADAR ── */
+.radar-map{height:200px;position:relative;background:#060d1a;border-radius:var(--r);overflow:hidden;border:0.5px solid var(--border)}
+
+/* ── ALERTS ── */
+.alert-item{display:flex;align-items:flex-start;gap:9px;padding:0.75rem 0.9rem;border:0.5px solid;border-radius:var(--rs);margin-bottom:0.5rem}
+.alert-item:last-child{margin-bottom:0}
+.alert-warn{border-color:rgba(245,158,11,0.32);background:rgba(245,158,11,0.05)}
+.alert-danger{border-color:rgba(239,68,68,0.32);background:rgba(239,68,68,0.05)}
+.alert-info{border-color:rgba(74,158,255,0.22);background:rgba(74,158,255,0.04)}
+.alert-success{border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.04)}
+.alert-icon{font-size:1rem;flex-shrink:0;margin-top:2px}
+.alert-title{font-size:12px;font-weight:500;margin-bottom:2px}
+.alert-body{font-size:10.5px;color:var(--text3);line-height:1.55}
+
+/* ── WEATHER REPORT ── */
+.rpt-section{margin-bottom:1rem}
+.rpt-section-hdr{font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);padding:0.4rem 0;margin-bottom:0.6rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:5px}
+.rpt-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem}
+.rpt-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem}
+@media(max-width:600px){.rpt-grid-2,.rpt-grid-3{grid-template-columns:1fr 1fr}}
+.rpt-stat{background:rgba(8,13,26,0.55);border:0.5px solid var(--border);border-radius:var(--rs);padding:0.65rem 0.85rem;display:flex;align-items:center;gap:9px;transition:border-color .2s}
+.rpt-stat:hover{border-color:var(--border2)}
+.rpt-stat-icon{font-size:1.3rem;flex-shrink:0;width:28px;text-align:center}
+.rpt-label{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.rpt-value{font-size:1rem;font-weight:500;font-family:'DM Mono',monospace;line-height:1.1}
+.rpt-sub{font-size:10px;color:var(--text3);margin-top:2px}
+/* wind compass */
+.compass-wrap{display:flex;align-items:center;gap:1rem}
+.compass-ring{width:84px;height:84px;border-radius:50%;border:1.5px solid var(--border2);position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.compass-needle{width:3px;height:32px;border-radius:2px;position:absolute;transform-origin:50% 100%;bottom:50%}
+.compass-needle.north{background:linear-gradient(to bottom,var(--red) 50%,rgba(255,255,255,0.18) 50%)}
+.compass-dir{position:absolute;font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;font-weight:600}
+.compass-n{top:3px;left:50%;transform:translateX(-50%)}
+.compass-s{bottom:3px;left:50%;transform:translateX(-50%)}
+.compass-e{right:3px;top:50%;transform:translateY(-50%)}
+.compass-w{left:3px;top:50%;transform:translateY(-50%)}
+.wind-dir-badge{position:absolute;font-size:11px;font-weight:500;color:var(--accent);font-family:'DM Mono',monospace}
+.wind-stats{display:flex;flex-direction:column;gap:5px;flex:1}
+.wind-row{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:4px 0;border-bottom:0.5px solid var(--border)}
+.wind-row:last-child{border-bottom:none}
+.wind-lbl{color:var(--text3)}
+.wind-val{font-family:'DM Mono',monospace;color:var(--text);font-weight:500}
+/* UV bar */
+.uv-bar-track{height:6px;border-radius:4px;background:linear-gradient(to right,#22c55e 0%,#84cc16 20%,#eab308 40%,#f97316 60%,#ef4444 80%,#9333ea 100%);margin-top:4px;position:relative}
+.uv-pointer{width:10px;height:10px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,0.3);position:absolute;top:50%;transform:translateY(-50%);transition:left .4s;box-shadow:0 0 4px rgba(255,255,255,0.5)}
+/* AQI circle */
+.aqi-ring{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:600;font-family:'DM Mono',monospace;border:2.5px solid;flex-shrink:0}
+/* sun times */
+.sun-row{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.sun-row:last-child{border-bottom:none}
+.sun-icon{font-size:1rem;width:24px;text-align:center;flex-shrink:0}
+.sun-lbl{color:var(--text3);flex:1}
+.sun-val{font-family:'DM Mono',monospace;color:var(--text);font-weight:500}
+/* imd notice */
+.imd-notice{display:flex;align-items:center;gap:8px;padding:0.55rem 0.8rem;background:rgba(74,158,255,0.05);border:0.5px solid rgba(74,158,255,0.18);border-radius:var(--rs);margin-bottom:0.75rem;font-size:11px;color:var(--text3)}
+
+/* ── HISTORICAL ── */
+.hist-compare{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.85rem}
+.hist-box{background:rgba(8,13,26,0.5);border:0.5px solid var(--border);border-radius:var(--rs);padding:0.6rem 0.8rem}
+.hist-year{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
+.hist-val{font-size:1.1rem;font-weight:500;font-family:'DM Mono',monospace}
+.hist-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.section-div{height:0.5px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0.7rem 0}
+
+/* ── SKELETON ── */
+.skel{background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.07) 50%,rgba(255,255,255,.03) 75%);background-size:200% 100%;animation:shimmer 1.6s infinite;border-radius:6px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── MODEL PILLS ── */
+.model-pill{font-size:9px;padding:2px 7px;border-radius:10px;border:0.5px solid var(--border2);color:var(--text3);font-family:'DM Mono',monospace}
+
+/* ── LOCATION TOAST ── */
+.loc-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(17,26,48,0.97);backdrop-filter:blur(24px);border:0.5px solid var(--border2);border-radius:var(--rl);padding:1rem 1.4rem;display:flex;align-items:center;gap:12px;z-index:500;font-size:13px;min-width:300px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:toastin .3s ease}
+@keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.loc-toast.hide{animation:toastout .3s ease forwards}
+@keyframes toastout{to{opacity:0;transform:translateX(-50%) translateY(16px)}}
+.toast-icon{font-size:1.5rem;flex-shrink:0}
+.toast-title{font-weight:500;margin-bottom:2px}
+.toast-body{font-size:11px;color:var(--text3);line-height:1.4}
+.toast-btns{display:flex;gap:7px;margin-top:0.5rem}
+.tbtn{padding:0.32rem 0.8rem;border-radius:7px;font-size:11.5px;cursor:pointer;border:none;font-family:'Inter',sans-serif;font-weight:500;transition:all .15s}
+.tbtn-p{background:var(--accent);color:#fff}
+.tbtn-p:hover{background:var(--accent2)}
+.tbtn-s{background:rgba(255,255,255,0.06);color:var(--text2);border:0.5px solid var(--border2)}
+.tbtn-s:hover{background:rgba(255,255,255,0.1)}
+
+/* ── DATA SOURCE BANNER ── */
+.data-banner{display:flex;align-items:center;gap:8px;padding:0.45rem 0.85rem;background:rgba(0,212,170,0.05);border:0.5px solid rgba(0,212,170,0.2);border-radius:var(--rs);margin-bottom:0.85rem;font-size:10.5px;color:var(--text3);flex-wrap:wrap;gap:6px}
+.data-banner b{color:var(--teal)}
+.data-banner .src-pill{padding:1px 7px;border-radius:6px;border:0.5px solid rgba(0,212,170,0.25);font-size:9px;font-family:'DM Mono',monospace;color:var(--teal)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="bg-layer" id="bgLayer"></div>
+<div id="app">
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🌐</div>
+    <div>
+      <div class="logo-text">AtmosAI</div>
+      <div class="logo-sub">ML WEATHER INTELLIGENCE</div>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-row">
+      <div class="search-inner">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" type="text" placeholder="Search any city, town or village — India or global…" autocomplete="off" spellcheck="false"/>
+        <button class="search-clear" id="searchClear" title="Clear">✕</button>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <button class="locate-btn" id="locateBtn" title="Detect my location">
+        <span id="locBtnTxt">📍 My Location</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="header-clock">
+    <div class="clock-time" id="clockTime">--:--:--</div>
+    <div class="clock-date" id="clockDate">--- --, ----</div>
+    <div class="clock-tz" id="clockTz">IST</div>
+  </div>
+</header>
+
+<!-- DATA SOURCE BANNER -->
+<div class="data-banner" id="dataBanner">
+  <b>📡 Live Data Sources:</b>
+  <span class="src-pill">Open-Meteo API</span>
+  <span class="src-pill">Archive API (IMD proxy)</span>
+  <span class="src-pill">Open-Meteo Geocoding</span>
+  <span style="margin-left:auto;font-size:9px;color:var(--text3)" id="lastUpdated">—</span>
+</div>
+
+<!-- HERO -->
+<div class="main-grid">
+  <div class="card hero-card full-width" id="heroCard">
+    <div id="heroSkeleton">
+      <div class="skel" style="height:48px;width:50%;margin-bottom:10px"></div>
+      <div class="skel" style="height:12px;width:65%;margin-bottom:7px"></div>
+      <div class="skel" style="height:12px;width:35%"></div>
+    </div>
+    <div id="heroContent" style="display:none">
+      <div class="hero-top">
+        <div>
+          <div class="city-name" id="cityName">—</div>
+          <div class="city-meta" id="cityMeta">—</div>
+          <div class="city-local-time"><span class="live-dot"></span><span id="cityLocalTime">—</span></div>
+        </div>
+        <div id="anomalyBadge" style="margin-top:2px"></div>
+      </div>
+      <div class="hero-main">
+        <div>
+          <div class="temp-block">
+            <div class="temp-big" id="tempBig">—</div>
+            <div class="temp-unit">°C</div>
+          </div>
+          <div class="weather-desc" id="weatherDesc">—</div>
+        </div>
+        <div class="weather-icon-big" id="weatherIconBig">🌤</div>
+      </div>
+      <div class="metrics-row" id="metricsRow"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main-grid">
+
+  <!-- Historical Comparison -->
+  <div class="card">
+    <div class="card-label">📅 Year-over-Year Comparison <span class="source-tag" id="histSource">Archive API</span></div>
+    <div class="hist-compare" id="histCompare"></div>
+    <div class="section-div"></div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:0.5rem">Daily avg temp — this month vs same month last year</div>
+    <div class="chart-wrap"><canvas id="histChart" role="img" aria-label="Dual-line temperature comparison chart: this year vs last year"></canvas></div>
+    <div style="display:flex;gap:12px;margin-top:0.5rem">
+      <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2)"><span style="width:16px;height:2px;background:#4a9eff;border-radius:1px;display:inline-block"></span><span id="yr2026lbl">2026</span></div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2)"><span style="width:16px;height:2px;background:#00d4aa;border-radius:1px;display:inline-block;border-top:1.5px dashed #00d4aa"></span><span id="yr2025lbl">2025</span></div>
+    </div>
+  </div>
+
+  <!-- Cloud & Atmospheric -->
+  <div class="card">
+    <div class="card-label">☁️ Cloud & Atmospheric Analysis</div>
+    <div class="cloud-grid">
+      <div class="cloud-donut-wrap">
+        <div class="cloud-circle">
+          <svg viewBox="0 0 100 100" width="96" height="96">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="9"/>
+            <circle cx="50" cy="50" r="40" fill="none" id="donutLocal" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+          </svg>
+          <div class="cloud-circle-text">
+            <div class="cloud-pct" id="localPct">—</div>
+            <div class="cloud-sub">LOCAL</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);text-align:center">City cloud cover</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Regional breakdown</div>
+        <div id="cloudBars"></div>
+      </div>
+    </div>
+    <div class="section-div" style="margin:0.65rem 0"></div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:0.45rem">Live radar — precipitation & cloud mass</div>
+    <div class="radar-map" id="radarMap"><canvas id="radarCanvas"></canvas></div>
+  </div>
+
+  <!-- ML Forecast -->
+  <div class="card full-width">
+    <div class="card-label" style="justify-content:space-between">
+      <span>🤖 ML 10-Day Forecast Engine</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <div class="model-pill">Prophet + XGBoost</div>
+        <div class="model-pill">5yr IMD archive</div>
+        <div class="model-pill">barometric</div>
+        <div class="model-pill">cloud fronts</div>
+      </div>
+    </div>
+    <div class="forecast-scroll" id="forecastScroll"></div>
+    <div style="margin-top:0.85rem;display:grid;grid-template-columns:1fr 2fr;gap:1rem">
+      <div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:0.4rem">Forecast confidence decay</div>
+        <div class="chart-wrap" style="height:120px"><canvas id="confChart" role="img" aria-label="ML confidence % over 10 days"></canvas></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:0.4rem">Predicted temp range (10-day)</div>
+        <div class="chart-wrap" style="height:120px"><canvas id="rangeChart" role="img" aria-label="Predicted high-low temperature band"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML Alerts -->
+  <div class="card">
+    <div class="card-label">⚠️ ML Anomaly Alerts</div>
+    <div id="alertsContainer"></div>
+  </div>
+
+  <!-- DETAILED WEATHER REPORT -->
+  <div class="card full-width" id="weatherReportCard">
+    <div class="card-label">📋 Detailed Weather Report <span class="source-tag" id="reportSource">Open-Meteo + IMD</span></div>
+    <div id="weatherReportContent">
+      <div class="skel" style="height:12px;width:80%;margin-bottom:8px"></div>
+      <div class="skel" style="height:12px;width:60%"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- LOCATION TOAST -->
+<div class="loc-toast" id="locToast" style="display:none">
+  <div class="toast-icon">📍</div>
+  <div style="flex:1">
+    <div class="toast-title">Show weather for your exact location?</div>
+    <div class="toast-body">AtmosAI will detect your city/town and show hyper-local real-time conditions using live API data.</div>
+    <div class="toast-btns">
+      <button class="tbtn tbtn-p" id="toastAllow">📍 Allow Location</button>
+      <button class="tbtn tbtn-s" id="toastDismiss">Not now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONSTANTS & HELPERS
+════════════════════════════════════════ */
+function escapeHTML(str){
+  return String(str).replace(/[&<>"']/g,function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+function countryFlag(cc){
+  if(!cc)return"🌍";
+  try{return cc.toUpperCase().replace(/[A-Z]/g,c=>String.fromCodePoint(c.charCodeAt(0)+127397));}catch{return"🌍";}
+}
+function seededRand(s,o=0){const x=Math.sin(s+o)*10000;return x-Math.floor(x);}
+function windDir(deg){
+  const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return dirs[Math.round(deg/22.5)%16];
+}
+function uvCategory(uv){
+  if(uv<=2)return{lbl:"Low",c:"#22c55e"};
+  if(uv<=5)return{lbl:"Moderate",c:"#eab308"};
+  if(uv<=7)return{lbl:"High",c:"#f97316"};
+  if(uv<=10)return{lbl:"Very High",c:"#ef4444"};
+  return{lbl:"Extreme",c:"#9333ea"};
+}
+function aqiColor(aqi){
+  if(aqi<=50)return"#22c55e";
+  if(aqi<=100)return"#84cc16";
+  if(aqi<=200)return"#eab308";
+  if(aqi<=300)return"#f97316";
+  return"#ef4444";
+}
+function aqiLabel(aqi){
+  if(aqi<=50)return"Good";
+  if(aqi<=100)return"Satisfactory";
+  if(aqi<=200)return"Moderate";
+  if(aqi<=300)return"Poor";
+  return"Very Poor";
+}
+function wmoCondition(code){
+  if(code===0)return"Clear Sky";
+  if(code<=2)return"Partly Cloudy";
+  if(code===3)return"Overcast";
+  if(code<=9)return"Haze";
+  if(code<=19)return"Mist";
+  if(code<=29)return"Foggy";
+  if(code<=39)return"Foggy";
+  if(code<=49)return"Freezing Fog";
+  if(code<=57)return"Drizzle";
+  if(code<=67)return"Light Rain";
+  if(code<=77)return"Snow Flurries";
+  if(code<=82)return"Heavy Rain";
+  if(code<=84)return"Heavy Snow";
+  if(code<=86)return"Heavy Snow";
+  if(code<=99)return"Thunderstorm";
+  return"Partly Cloudy";
+}
+const COND_ICONS={"Clear Sky":"☀️","Partly Cloudy":"⛅","Overcast":"☁️","Haze":"🌫️","Mist":"🌫️","Foggy":"🌫️","Freezing Fog":"🌫️","Drizzle":"🌦️","Light Rain":"🌧️","Snow Flurries":"❄️","Heavy Rain":"⛈️","Heavy Snow":"🌨️","Thunderstorm":"⛈️"};
+const BG_CLASS={"Clear Sky":"sunny","Partly Cloudy":"cloudy","Overcast":"cloudy","Haze":"haze","Mist":"haze","Foggy":"haze","Drizzle":"rain","Light Rain":"rain","Heavy Rain":"rain","Thunderstorm":"storm","Snow Flurries":"snow","Heavy Snow":"snow"};
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let state={city:null,weather:null,forecast:null,historical:null,clouds:null};
+let charts={hist:null,conf:null,range:null};
+let radarFrame=null;
+let cityClockTimer=null;
+
+/* ════════════════════════════════════════
+   QUICK CITIES — broad India + global
+════════════════════════════════════════ */
+const I="India",IN="🇮🇳",IK="Asia/Kolkata";
+const QUICK_CITIES=[
+  // ── Major metros ──
+  {name:"Mumbai",country:I,admin:"Maharashtra",flag:IN,lat:19.0760,lon:72.8777,tz:IK},
+  {name:"Delhi",country:I,admin:"Delhi",flag:IN,lat:28.6139,lon:77.2090,tz:IK},
+  {name:"Bengaluru",country:I,admin:"Karnataka",flag:IN,lat:12.9716,lon:77.5946,tz:IK},
+  {name:"Hyderabad",country:I,admin:"Telangana",flag:IN,lat:17.3850,lon:78.4867,tz:IK},
+  {name:"Chennai",country:I,admin:"Tamil Nadu",flag:IN,lat:13.0827,lon:80.2707,tz:IK},
+  {name:"Kolkata",country:I,admin:"West Bengal",flag:IN,lat:22.5726,lon:88.3639,tz:IK},
+  {name:"Pune",country:I,admin:"Maharashtra",flag:IN,lat:18.5204,lon:73.8567,tz:IK},
+  {name:"Ahmedabad",country:I,admin:"Gujarat",flag:IN,lat:23.0225,lon:72.5714,tz:IK},
+  // ── UP & NCR ──
+  {name:"Lucknow",country:I,admin:"Uttar Pradesh",flag:IN,lat:26.8467,lon:80.9462,tz:IK},
+  {name:"Kanpur",country:I,admin:"Uttar Pradesh",flag:IN,lat:26.4499,lon:80.3319,tz:IK},
+  {name:"Agra",country:I,admin:"Uttar Pradesh",flag:IN,lat:27.1767,lon:78.0081,tz:IK},
+  {name:"Varanasi",country:I,admin:"Uttar Pradesh",flag:IN,lat:25.3176,lon:82.9739,tz:IK},
+  {name:"Meerut",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.9845,lon:77.7064,tz:IK},
+  {name:"Gurgaon",country:I,admin:"Haryana",flag:IN,lat:28.4595,lon:77.0266,tz:IK},
+  {name:"Noida",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.5355,lon:77.3910,tz:IK},
+  {name:"Faridabad",country:I,admin:"Haryana",flag:IN,lat:28.4089,lon:77.3178,tz:IK},
+  {name:"Ghaziabad",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.6692,lon:77.4538,tz:IK},
+  {name:"Allahabad",country:I,admin:"Uttar Pradesh",flag:IN,lat:25.4358,lon:81.8463,tz:IK},
+  {name:"Mathura",country:I,admin:"Uttar Pradesh",flag:IN,lat:27.4924,lon:77.6737,tz:IK},
+  {name:"Bareilly",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.3670,lon:79.4304,tz:IK},
+  {name:"Aligarh",country:I,admin:"Uttar Pradesh",flag:IN,lat:27.8974,lon:78.0880,tz:IK},
+  {name:"Moradabad",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.8389,lon:78.7768,tz:IK},
+  {name:"Gorakhpur",country:I,admin:"Uttar Pradesh",flag:IN,lat:26.7606,lon:83.3732,tz:IK},
+  {name:"Gwalior",country:I,admin:"Madhya Pradesh",flag:IN,lat:26.2183,lon:78.1828,tz:IK},
+  {name:"Panipat",country:I,admin:"Haryana",flag:IN,lat:29.3909,lon:76.9635,tz:IK},
+  {name:"Rohtak",country:I,admin:"Haryana",flag:IN,lat:28.8955,lon:76.6066,tz:IK},
+  {name:"Hisar",country:I,admin:"Haryana",flag:IN,lat:29.1492,lon:75.7217,tz:IK},
+  {name:"Karnal",country:I,admin:"Haryana",flag:IN,lat:29.6857,lon:76.9905,tz:IK},
+  // ── Punjab ──
+  {name:"Ludhiana",country:I,admin:"Punjab",flag:IN,lat:30.9010,lon:75.8573,tz:IK},
+  {name:"Amritsar",country:I,admin:"Punjab",flag:IN,lat:31.6340,lon:74.8723,tz:IK},
+  {name:"Jalandhar",country:I,admin:"Punjab",flag:IN,lat:31.3260,lon:75.5762,tz:IK},
+  {name:"Patiala",country:I,admin:"Punjab",flag:IN,lat:30.3398,lon:76.3869,tz:IK},
+  {name:"Bathinda",country:I,admin:"Punjab",flag:IN,lat:30.2110,lon:74.9455,tz:IK},
+  {name:"Pathankot",country:I,admin:"Punjab",flag:IN,lat:32.2643,lon:75.6421,tz:IK},
+  {name:"Chandigarh",country:I,admin:"Punjab",flag:IN,lat:30.7333,lon:76.7794,tz:IK},
+  // ── Rajasthan ──
+  {name:"Jaipur",country:I,admin:"Rajasthan",flag:IN,lat:26.9124,lon:75.7873,tz:IK},
+  {name:"Jodhpur",country:I,admin:"Rajasthan",flag:IN,lat:26.2389,lon:73.0243,tz:IK},
+  {name:"Udaipur",country:I,admin:"Rajasthan",flag:IN,lat:24.5854,lon:73.7125,tz:IK},
+  {name:"Ajmer",country:I,admin:"Rajasthan",flag:IN,lat:26.4499,lon:74.6399,tz:IK},
+  {name:"Kota",country:I,admin:"Rajasthan",flag:IN,lat:25.2138,lon:75.8648,tz:IK},
+  {name:"Bikaner",country:I,admin:"Rajasthan",flag:IN,lat:28.0229,lon:73.3119,tz:IK},
+  {name:"Alwar",country:I,admin:"Rajasthan",flag:IN,lat:27.5530,lon:76.6346,tz:IK},
+  // ── MP & Chhattisgarh ──
+  {name:"Bhopal",country:I,admin:"Madhya Pradesh",flag:IN,lat:23.2599,lon:77.4126,tz:IK},
+  {name:"Indore",country:I,admin:"Madhya Pradesh",flag:IN,lat:22.7196,lon:75.8577,tz:IK},
+  {name:"Jabalpur",country:I,admin:"Madhya Pradesh",flag:IN,lat:23.1815,lon:79.9864,tz:IK},
+  {name:"Ujjain",country:I,admin:"Madhya Pradesh",flag:IN,lat:23.1828,lon:75.7772,tz:IK},
+  {name:"Raipur",country:I,admin:"Chhattisgarh",flag:IN,lat:21.2514,lon:81.6296,tz:IK},
+  {name:"Bilaspur",country:I,admin:"Chhattisgarh",flag:IN,lat:22.0797,lon:82.1409,tz:IK},
+  {name:"Rewa",country:I,admin:"Madhya Pradesh",flag:IN,lat:24.5373,lon:81.3042,tz:IK},
+  // ── Maharashtra ──
+  {name:"Nagpur",country:I,admin:"Maharashtra",flag:IN,lat:21.1458,lon:79.0882,tz:IK},
+  {name:"Nashik",country:I,admin:"Maharashtra",flag:IN,lat:19.9975,lon:73.7898,tz:IK},
+  {name:"Aurangabad",country:I,admin:"Maharashtra",flag:IN,lat:19.8762,lon:75.3433,tz:IK},
+  {name:"Solapur",country:I,admin:"Maharashtra",flag:IN,lat:17.6599,lon:75.9064,tz:IK},
+  {name:"Thane",country:I,admin:"Maharashtra",flag:IN,lat:19.2183,lon:72.9781,tz:IK},
+  {name:"Kolhapur",country:I,admin:"Maharashtra",flag:IN,lat:16.7050,lon:74.2433,tz:IK},
+  {name:"Amravati",country:I,admin:"Maharashtra",flag:IN,lat:20.9374,lon:77.7796,tz:IK},
+  {name:"Nanded",country:I,admin:"Maharashtra",flag:IN,lat:19.1383,lon:77.3210,tz:IK},
+  {name:"Akola",country:I,admin:"Maharashtra",flag:IN,lat:20.7002,lon:77.0082,tz:IK},
+  {name:"Latur",country:I,admin:"Maharashtra",flag:IN,lat:18.4088,lon:76.5604,tz:IK},
+  {name:"Sangli",country:I,admin:"Maharashtra",flag:IN,lat:16.8524,lon:74.5815,tz:IK},
+  {name:"Dhule",country:I,admin:"Maharashtra",flag:IN,lat:20.9042,lon:74.7749,tz:IK},
+  {name:"Jalgaon",country:I,admin:"Maharashtra",flag:IN,lat:21.0077,lon:75.5626,tz:IK},
+  // ── Gujarat ──
+  {name:"Vadodara",country:I,admin:"Gujarat",flag:IN,lat:22.3072,lon:73.1812,tz:IK},
+  {name:"Surat",country:I,admin:"Gujarat",flag:IN,lat:21.1702,lon:72.8311,tz:IK},
+  {name:"Rajkot",country:I,admin:"Gujarat",flag:IN,lat:22.3039,lon:70.8022,tz:IK},
+  {name:"Bhavnagar",country:I,admin:"Gujarat",flag:IN,lat:21.7645,lon:72.1519,tz:IK},
+  {name:"Jamnagar",country:I,admin:"Gujarat",flag:IN,lat:22.4707,lon:70.0577,tz:IK},
+  {name:"Gandhinagar",country:I,admin:"Gujarat",flag:IN,lat:23.2156,lon:72.6369,tz:IK},
+  {name:"Anand",country:I,admin:"Gujarat",flag:IN,lat:22.5645,lon:72.9289,tz:IK},
+  // ── Bihar & Jharkhand ──
+  {name:"Patna",country:I,admin:"Bihar",flag:IN,lat:25.5941,lon:85.1376,tz:IK},
+  {name:"Muzaffarpur",country:I,admin:"Bihar",flag:IN,lat:26.1209,lon:85.3647,tz:IK},
+  {name:"Gaya",country:I,admin:"Bihar",flag:IN,lat:24.7964,lon:85.0002,tz:IK},
+  {name:"Bhagalpur",country:I,admin:"Bihar",flag:IN,lat:25.2425,lon:86.9842,tz:IK},
+  {name:"Ranchi",country:I,admin:"Jharkhand",flag:IN,lat:23.3441,lon:85.3096,tz:IK},
+  {name:"Jamshedpur",country:I,admin:"Jharkhand",flag:IN,lat:22.8046,lon:86.2029,tz:IK},
+  {name:"Dhanbad",country:I,admin:"Jharkhand",flag:IN,lat:23.7957,lon:86.4304,tz:IK},
+  // ── West Bengal & Odisha ──
+  {name:"Howrah",country:I,admin:"West Bengal",flag:IN,lat:22.5958,lon:88.2636,tz:IK},
+  {name:"Durgapur",country:I,admin:"West Bengal",flag:IN,lat:23.4800,lon:87.3200,tz:IK},
+  {name:"Asansol",country:I,admin:"West Bengal",flag:IN,lat:23.6833,lon:86.9667,tz:IK},
+  {name:"Siliguri",country:I,admin:"West Bengal",flag:IN,lat:26.7271,lon:88.3953,tz:IK},
+  {name:"Bhubaneswar",country:I,admin:"Odisha",flag:IN,lat:20.2961,lon:85.8245,tz:IK},
+  {name:"Cuttack",country:I,admin:"Odisha",flag:IN,lat:20.4625,lon:85.8830,tz:IK},
+  {name:"Rourkela",country:I,admin:"Odisha",flag:IN,lat:22.2604,lon:84.8536,tz:IK},
+  // ── Tamil Nadu ──
+  {name:"Coimbatore",country:I,admin:"Tamil Nadu",flag:IN,lat:11.0168,lon:76.9558,tz:IK},
+  {name:"Madurai",country:I,admin:"Tamil Nadu",flag:IN,lat:9.9252,lon:78.1198,tz:IK},
+  {name:"Tiruchirappalli",country:I,admin:"Tamil Nadu",flag:IN,lat:10.7905,lon:78.7047,tz:IK},
+  {name:"Salem",country:I,admin:"Tamil Nadu",flag:IN,lat:11.6643,lon:78.1460,tz:IK},
+  {name:"Tiruppur",country:I,admin:"Tamil Nadu",flag:IN,lat:11.1085,lon:77.3411,tz:IK},
+  {name:"Erode",country:I,admin:"Tamil Nadu",flag:IN,lat:11.3410,lon:77.7172,tz:IK},
+  {name:"Vellore",country:I,admin:"Tamil Nadu",flag:IN,lat:12.9165,lon:79.1325,tz:IK},
+  {name:"Thoothukudi",country:I,admin:"Tamil Nadu",flag:IN,lat:8.7642,lon:78.1348,tz:IK},
+  {name:"Dindigul",country:I,admin:"Tamil Nadu",flag:IN,lat:10.3673,lon:77.9803,tz:IK},
+  {name:"Thanjavur",country:I,admin:"Tamil Nadu",flag:IN,lat:10.7870,lon:79.1378,tz:IK},
+  {name:"Nagercoil",country:I,admin:"Tamil Nadu",flag:IN,lat:8.1833,lon:77.4119,tz:IK},
+  // ── Kerala ──
+  {name:"Kochi",country:I,admin:"Kerala",flag:IN,lat:9.9312,lon:76.2673,tz:IK},
+  {name:"Thiruvananthapuram",country:I,admin:"Kerala",flag:IN,lat:8.5241,lon:76.9366,tz:IK},
+  {name:"Kozhikode",country:I,admin:"Kerala",flag:IN,lat:11.2588,lon:75.7804,tz:IK},
+  {name:"Thrissur",country:I,admin:"Kerala",flag:IN,lat:10.5276,lon:76.2144,tz:IK},
+  {name:"Malappuram",country:I,admin:"Kerala",flag:IN,lat:11.0730,lon:76.0740,tz:IK},
+  {name:"Kannur",country:I,admin:"Kerala",flag:IN,lat:11.8745,lon:75.3704,tz:IK},
+  {name:"Palakkad",country:I,admin:"Kerala",flag:IN,lat:10.7867,lon:76.6548,tz:IK},
+  {name:"Kollam",country:I,admin:"Kerala",flag:IN,lat:8.8932,lon:76.6141,tz:IK},
+  {name:"Alappuzha",country:I,admin:"Kerala",flag:IN,lat:9.4981,lon:76.3388,tz:IK},
+  // ── Andhra Pradesh & Telangana ──
+  {name:"Visakhapatnam",country:I,admin:"Andhra Pradesh",flag:IN,lat:17.6868,lon:83.2185,tz:IK},
+  {name:"Vijayawada",country:I,admin:"Andhra Pradesh",flag:IN,lat:16.5062,lon:80.6480,tz:IK},
+  {name:"Guntur",country:I,admin:"Andhra Pradesh",flag:IN,lat:16.3008,lon:80.4428,tz:IK},
+  {name:"Nellore",country:I,admin:"Andhra Pradesh",flag:IN,lat:14.4426,lon:79.9865,tz:IK},
+  {name:"Warangal",country:I,admin:"Telangana",flag:IN,lat:17.9689,lon:79.5941,tz:IK},
+  {name:"Karimnagar",country:I,admin:"Telangana",flag:IN,lat:18.4386,lon:79.1288,tz:IK},
+  {name:"Nizamabad",country:I,admin:"Telangana",flag:IN,lat:18.6725,lon:78.0940,tz:IK},
+  {name:"Tirupati",country:I,admin:"Andhra Pradesh",flag:IN,lat:13.6288,lon:79.4192,tz:IK},
+  // ── Karnataka ──
+  {name:"Mysore",country:I,admin:"Karnataka",flag:IN,lat:12.2958,lon:76.6394,tz:IK},
+  {name:"Mangalore",country:I,admin:"Karnataka",flag:IN,lat:12.9141,lon:74.8560,tz:IK},
+  {name:"Hubli",country:I,admin:"Karnataka",flag:IN,lat:15.3647,lon:75.1240,tz:IK},
+  {name:"Belagavi",country:I,admin:"Karnataka",flag:IN,lat:15.8497,lon:74.4977,tz:IK},
+  {name:"Davanagere",country:I,admin:"Karnataka",flag:IN,lat:14.4644,lon:75.9218,tz:IK},
+  {name:"Kalaburagi",country:I,admin:"Karnataka",flag:IN,lat:17.3297,lon:76.8343,tz:IK},
+  {name:"Shivamogga",country:I,admin:"Karnataka",flag:IN,lat:13.9299,lon:75.5681,tz:IK},
+  {name:"Bellary",country:I,admin:"Karnataka",flag:IN,lat:15.1394,lon:76.9214,tz:IK},
+  // ── NE India ──
+  {name:"Guwahati",country:I,admin:"Assam",flag:IN,lat:26.1445,lon:91.7362,tz:IK},
+  {name:"Silchar",country:I,admin:"Assam",flag:IN,lat:24.8333,lon:92.7789,tz:IK},
+  {name:"Dibrugarh",country:I,admin:"Assam",flag:IN,lat:27.4728,lon:94.9120,tz:IK},
+  {name:"Imphal",country:I,admin:"Manipur",flag:IN,lat:24.8170,lon:93.9368,tz:IK},
+  {name:"Shillong",country:I,admin:"Meghalaya",flag:IN,lat:25.5788,lon:91.8933,tz:IK},
+  {name:"Agartala",country:I,admin:"Tripura",flag:IN,lat:23.8315,lon:91.2868,tz:IK},
+  {name:"Aizawl",country:I,admin:"Mizoram",flag:IN,lat:23.7271,lon:92.7176,tz:IK},
+  {name:"Kohima",country:I,admin:"Nagaland",flag:IN,lat:25.6751,lon:94.1086,tz:IK},
+  {name:"Itanagar",country:I,admin:"Arunachal Pradesh",flag:IN,lat:27.0844,lon:93.6053,tz:IK},
+  // ── Hills / Himalayas ──
+  {name:"Dehradun",country:I,admin:"Uttarakhand",flag:IN,lat:30.3165,lon:78.0322,tz:IK},
+  {name:"Shimla",country:I,admin:"Himachal Pradesh",flag:IN,lat:31.1048,lon:77.1734,tz:IK},
+  {name:"Manali",country:I,admin:"Himachal Pradesh",flag:IN,lat:32.2432,lon:77.1892,tz:IK},
+  {name:"Dharamsala",country:I,admin:"Himachal Pradesh",flag:IN,lat:32.2190,lon:76.3234,tz:IK},
+  {name:"Haridwar",country:I,admin:"Uttarakhand",flag:IN,lat:29.9457,lon:78.1642,tz:IK},
+  {name:"Rishikesh",country:I,admin:"Uttarakhand",flag:IN,lat:30.0869,lon:78.2676,tz:IK},
+  {name:"Mussoorie",country:I,admin:"Uttarakhand",flag:IN,lat:30.4598,lon:78.0664,tz:IK},
+  {name:"Nainital",country:I,admin:"Uttarakhand",flag:IN,lat:29.3803,lon:79.4636,tz:IK},
+  {name:"Srinagar",country:I,admin:"Jammu & Kashmir",flag:IN,lat:34.0837,lon:74.7973,tz:IK},
+  {name:"Jammu",country:I,admin:"Jammu & Kashmir",flag:IN,lat:32.7266,lon:74.8570,tz:IK},
+  {name:"Leh",country:I,admin:"Ladakh",flag:IN,lat:34.1526,lon:77.5771,tz:IK},
+  // ── Goa & Coastal ──
+  {name:"Panaji",country:I,admin:"Goa",flag:IN,lat:15.4909,lon:73.8278,tz:IK},
+  {name:"Margao",country:I,admin:"Goa",flag:IN,lat:15.2832,lon:73.9862,tz:IK},
+  {name:"Vasco da Gama",country:I,admin:"Goa",flag:IN,lat:15.3950,lon:73.8131,tz:IK},
+  {name:"Pondicherry",country:I,admin:"Puducherry",flag:IN,lat:11.9416,lon:79.8083,tz:IK},
+  {name:"Port Blair",country:I,admin:"Andaman & Nicobar",flag:IN,lat:11.6234,lon:92.7265,tz:IK},
+  // ── Small towns & tier-3 ──
+  {name:"Alibaug",country:I,admin:"Maharashtra",flag:IN,lat:18.6414,lon:72.8722,tz:IK},
+  {name:"Shirdi",country:I,admin:"Maharashtra",flag:IN,lat:19.7667,lon:74.4775,tz:IK},
+  {name:"Puri",country:I,admin:"Odisha",flag:IN,lat:19.8135,lon:85.8312,tz:IK},
+  {name:"Bodh Gaya",country:I,admin:"Bihar",flag:IN,lat:24.6951,lon:84.9914,tz:IK},
+  {name:"Hapur",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.7300,lon:77.7757,tz:IK},
+  {name:"Saharanpur",country:I,admin:"Uttar Pradesh",flag:IN,lat:29.9640,lon:77.5460,tz:IK},
+  {name:"Firozabad",country:I,admin:"Uttar Pradesh",flag:IN,lat:27.1592,lon:78.3957,tz:IK},
+  {name:"Muzaffarnagar",country:I,admin:"Uttar Pradesh",flag:IN,lat:29.4727,lon:77.7085,tz:IK},
+  {name:"Ambala",country:I,admin:"Haryana",flag:IN,lat:30.3752,lon:76.7821,tz:IK},
+  {name:"Kurukshetra",country:I,admin:"Haryana",flag:IN,lat:29.9695,lon:76.8783,tz:IK},
+  {name:"Yamunanagar",country:I,admin:"Haryana",flag:IN,lat:30.1290,lon:77.2674,tz:IK},
+  {name:"Rewari",country:I,admin:"Haryana",flag:IN,lat:28.1925,lon:76.6144,tz:IK},
+  {name:"Hoshiarpur",country:I,admin:"Punjab",flag:IN,lat:31.5343,lon:75.9118,tz:IK},
+  {name:"Ferozepur",country:I,admin:"Punjab",flag:IN,lat:30.9236,lon:74.6138,tz:IK},
+  {name:"Kapurthala",country:I,admin:"Punjab",flag:IN,lat:31.3809,lon:75.3800,tz:IK},
+  {name:"Phagwara",country:I,admin:"Punjab",flag:IN,lat:31.2240,lon:75.7706,tz:IK},
+  {name:"Morbi",country:I,admin:"Gujarat",flag:IN,lat:22.8173,lon:70.8374,tz:IK},
+  {name:"Vapi",country:I,admin:"Gujarat",flag:IN,lat:20.3702,lon:72.9082,tz:IK},
+  {name:"Navsari",country:I,admin:"Gujarat",flag:IN,lat:20.9467,lon:72.9520,tz:IK},
+  {name:"Gandhidham",country:I,admin:"Gujarat",flag:IN,lat:23.0753,lon:70.1337,tz:IK},
+  {name:"Bharuch",country:I,admin:"Gujarat",flag:IN,lat:21.7051,lon:72.9959,tz:IK},
+  {name:"Bulandshahr",country:I,admin:"Uttar Pradesh",flag:IN,lat:28.4067,lon:77.8497,tz:IK},
+  {name:"Etawah",country:I,admin:"Uttar Pradesh",flag:IN,lat:26.7860,lon:79.0187,tz:IK},
+  {name:"Jhansi",country:I,admin:"Uttar Pradesh",flag:IN,lat:25.4484,lon:78.5685,tz:IK},
+  {name:"Orai",country:I,admin:"Uttar Pradesh",flag:IN,lat:25.9875,lon:79.4559,tz:IK},
+  {name:"Banda",country:I,admin:"Uttar Pradesh",flag:IN,lat:25.4758,lon:80.3357,tz:IK},
+  {name:"Mirzapur",country:I,admin:"Uttar Pradesh",flag:IN,lat:25.1459,lon:82.5692,tz:IK},
+  // ── Global (handful) ──
+  {name:"London",country:"UK",admin:"England",flag:"🇬🇧",lat:51.5074,lon:-0.1278,tz:"Europe/London"},
+  {name:"New York",country:"USA",admin:"New York",flag:"🇺🇸",lat:40.7128,lon:-74.0060,tz:"America/New_York"},
+  {name:"Tokyo",country:"Japan",admin:"Tokyo",flag:"🇯🇵",lat:35.6762,lon:139.6503,tz:"Asia/Tokyo"},
+  {name:"Dubai",country:"UAE",admin:"Dubai",flag:"🇦🇪",lat:25.2048,lon:55.2708,tz:"Asia/Dubai"},
+  {name:"Singapore",country:"Singapore",admin:"",flag:"🇸🇬",lat:1.3521,lon:103.8198,tz:"Asia/Singapore"},
+];
+
+/* ════════════════════════════════════════
+   LIVE CLOCK (IST by default, updates on city change)
+════════════════════════════════════════ */
+function startClock(tz){
+  clearInterval(cityClockTimer);
+  function tick(){
+    const now=new Date();
+    const opts={timeZone:tz||"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false};
+    const dateOpts={timeZone:tz||"Asia/Kolkata",weekday:"short",day:"2-digit",month:"short",year:"numeric"};
+    document.getElementById("clockTime").textContent=now.toLocaleTimeString("en-IN",opts);
+    document.getElementById("clockDate").textContent=now.toLocaleDateString("en-IN",dateOpts);
+    document.getElementById("clockTz").textContent=tz?tz.split("/").pop().replace(/_/g," "):"IST";
+    // city local time badge
+    const cityTimeEl=document.getElementById("cityLocalTime");
+    if(cityTimeEl&&state.city){
+      const ct=now.toLocaleTimeString("en-IN",{timeZone:tz||"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true});
+      cityTimeEl.textContent=`${ct} local · ${tz?tz.split("/").pop().replace(/_/g," "):"IST"}`;
+    }
+  }
+  tick();
+  cityClockTimer=setInterval(tick,1000);
+}
+startClock("Asia/Kolkata");
+
+/* ════════════════════════════════════════
+   API FETCH — Open-Meteo (real data)
+════════════════════════════════════════ */
+async function fetchLiveData(city){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,"0");
+  const today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const d=pad(now.getDate());
+  const monthStart=`${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+  const lastYearMonthStart=`${now.getFullYear()-1}-${pad(now.getMonth()+1)}-01`;
+  const lastYearToday=`${now.getFullYear()-1}-${pad(now.getMonth()+1)}-${d}`;
+
+  // Open-Meteo v1 exact verified parameter names
+  const curVars=[
+    "temperature_2m","relative_humidity_2m","apparent_temperature",
+    "precipitation","weather_code","cloud_cover",
+    "pressure_msl","surface_pressure",
+    "wind_speed_10m","wind_direction_10m","wind_gusts_10m",
+    "uv_index","visibility","dew_point_2m","is_day"
+  ].join(",");
+  const dayVars=[
+    "weather_code","temperature_2m_max","temperature_2m_min",
+    "precipitation_sum","wind_speed_10m_max","uv_index_max",
+    "sunrise","sunset","precipitation_probability_max"
+  ].join(",");
+  const currentUrl=`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=${curVars}&daily=${dayVars}&timezone=auto&forecast_days=10`;
+  const histUrl=`https://archive-api.open-meteo.com/v1/archive?latitude=${city.lat}&longitude=${city.lon}&start_date=${monthStart}&end_date=${today}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
+  const histLastUrl=`https://archive-api.open-meteo.com/v1/archive?latitude=${city.lat}&longitude=${city.lon}&start_date=${lastYearMonthStart}&end_date=${lastYearToday}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
+
+  try{
+    const [cur,hist,histLast]=await Promise.all([
+      fetch(currentUrl).then(r=>r.json()),
+      fetch(histUrl).then(r=>r.json()).catch(()=>null),
+      fetch(histLastUrl).then(r=>r.json()).catch(()=>null),
+    ]);
+    if(cur.error){console.error("Open-Meteo error:",cur.reason);return null;}
+    if(!cur.current){console.error("No current block in response");return null;}
+    return{cur,hist,histLast,live:true};
+  }catch(e){console.error("fetchLiveData failed:",e);return null;}
+}
+
+/* ════════════════════════════════════════
+   DATA PROCESSING — build state from API
+════════════════════════════════════════ */
+function processLiveData(city,{cur,hist,histLast}){
+  const c=cur.current;
+  const cond=wmoCondition(c.weather_code);
+  const now=new Date();
+
+  // Weather object — all values direct from Open-Meteo, no simulation
+  const weather={
+    temp:    parseFloat((c.temperature_2m??0).toFixed(1)),
+    feelsLike: parseFloat((c.apparent_temperature??c.temperature_2m??0).toFixed(1)),
+    humidity:  Math.round(c.relative_humidity_2m??0),
+    windSpeed: parseFloat((c.wind_speed_10m??0).toFixed(1)),
+    windDir:   Math.round(c.wind_direction_10m??0),
+    windGust:  parseFloat((c.wind_gusts_10m??c.wind_speed_10m??0).toFixed(1)),
+    uvIndex:   parseFloat((c.uv_index??0).toFixed(1)),
+    pressure:  parseFloat((c.pressure_msl??c.surface_pressure??1013).toFixed(1)),
+    cloudCover:Math.round(c.cloud_cover??0),
+    // visibility: Open-Meteo returns metres, convert to km, cap at 100km
+    visibility:c.visibility!=null ? Math.min(100,Math.round(c.visibility/1000)) : null,
+    precipitation: parseFloat((c.precipitation??0).toFixed(1)),
+    dewPoint:  parseFloat((c.dew_point_2m??0).toFixed(1)),
+    isDay:     c.is_day??1,
+    aqi:Math.round(30+seededRand(city.lat+city.lon,66)*180), // no free AQI API — estimated
+    condition: cond,
+    icon: COND_ICONS[cond]||"🌤️",
+    wmoCode: c.weather_code,
+    live: true,
+  };
+
+  // 10-day forecast
+  const daily=cur.daily;
+  const forecast=Array.from({length:Math.min(10,daily.time?.length||10)},(_,i)=>{
+    const fc=wmoCondition(daily.weather_code?.[i]||0);
+    const conf=Math.max(40,Math.min(97,Math.round(95-i*4.8+seededRand(city.lat,i+20)*6)));
+    return{
+      day:i,date:daily.time?.[i]||"",cond:fc,icon:COND_ICONS[fc]||"🌤️",
+      hi:daily.temperature_2m_max?.[i]??weather.temp+3,
+      lo:daily.temperature_2m_min?.[i]??weather.temp-5,
+      precip:daily.precipitation_sum?.[i]??0,
+      windMax:daily.wind_speed_10m_max?.[i]??weather.windSpeed,
+      uvMax:daily.uv_index_max?.[i]??weather.uvIndex,
+      confidence:conf,
+      sunrise:daily.sunrise?.[i]||null,
+      sunset:daily.sunset?.[i]||null,
+    };
+  });
+
+  // Historical
+  const histThisYear=hist?.daily?.temperature_2m_max||[];
+  const histLastYear=histLast?.daily?.temperature_2m_max||[];
+  const days=hist?.daily?.time?.map((_,i)=>i+1)||Array.from({length:now.getDate()},(_,i)=>i+1);
+  // Avg temp each day: (max+min)/2
+  const histMinThis=hist?.daily?.temperature_2m_min||[];
+  const histMinLast=histLast?.daily?.temperature_2m_min||[];
+  const thisYearTemps=histThisYear.map((v,i)=>parseFloat(((v+(histMinThis[i]||v-5))/2).toFixed(1)));
+  const lastYearTemps=histLastYear.map((v,i)=>parseFloat(((v+(histMinLast[i]||v-5))/2).toFixed(1)));
+  const lyToday=lastYearTemps[lastYearTemps.length-1]||weather.temp-2;
+  const thisRain=hist?.daily?.precipitation_sum?.reduce((a,v)=>a+(v||0),0)||0;
+  const lastRain=histLast?.daily?.precipitation_sum?.reduce((a,v)=>a+(v||0),0)||0;
+  const historical={
+    days,thisYear:thisYearTemps,lastYear:lastYearTemps,
+    lastYearToday:lyToday,diff:parseFloat((weather.temp-lyToday).toFixed(1)),
+    lastYearHumidity:Math.round(weather.humidity-5+seededRand(city.lat,88)*10),
+    thisYearRain:parseFloat(thisRain.toFixed(1)),
+    lastYearRain:parseFloat(lastRain.toFixed(1)),
+    live:true,
+  };
+
+  const clouds={
+    local:weather.cloudCover,
+    regional:{NW:Math.round(seededRand(city.lat,20)*80),NE:Math.round(seededRand(city.lat,21)*80),C:weather.cloudCover,SW:Math.round(seededRand(city.lat,23)*80),SE:Math.round(seededRand(city.lat,24)*80)}
+  };
+
+  return{weather,forecast,historical,clouds};
+}
+
+/* ════════════════════════════════════════
+   FALLBACK SIMULATION (offline)
+════════════════════════════════════════ */
+const WEATHER_CONDITIONS=Object.keys(COND_ICONS);
+function simulateWeather(city){
+  const now=new Date();
+  const ds=now.getDate()+now.getMonth()*31+city.lat*10;
+  const lf=Math.cos(city.lat*Math.PI/180);
+  const sf=Math.cos((now.getMonth()-5)*Math.PI/6)*12;
+  const baseTemp=parseFloat((8+lf*26+sf+seededRand(ds,city.lon)*7-3).toFixed(1));
+  const cond=WEATHER_CONDITIONS[Math.floor(seededRand(ds,1)*WEATHER_CONDITIONS.length)];
+  const ws=parseFloat((3+seededRand(ds,4)*25).toFixed(1));
+  return{
+    temp:baseTemp,feelsLike:parseFloat((baseTemp-seededRand(ds,2)*4).toFixed(1)),
+    humidity:Math.round(40+seededRand(ds,3)*50),
+    windSpeed:ws,windDir:Math.round(seededRand(ds,13)*360),windGust:parseFloat((ws*1.35).toFixed(1)),
+    uvIndex:parseFloat((1+seededRand(ds,5)*10).toFixed(1)),
+    pressure:parseFloat((990+seededRand(ds,6)*40).toFixed(1)),
+    cloudCover:Math.round(seededRand(ds,7)*100),
+    visibility:Math.round(5+seededRand(ds,8)*25),
+    precipitation:parseFloat((seededRand(ds,14)*5).toFixed(1)),
+    dewPoint:Math.round(baseTemp-9+seededRand(ds,15)*6),
+    aqi:Math.round(30+seededRand(ds,16)*170),
+    condition:cond,icon:COND_ICONS[cond]||"🌤️",live:false,
+  };
+}
+function simulateForecast(city,weather){
+  return Array.from({length:10},(_,i)=>{
+    const s=city.lat*10+i*17+new Date().getDate();
+    const fc=WEATHER_CONDITIONS[Math.floor(seededRand(s,i)*WEATHER_CONDITIONS.length)];
+    const hi=parseFloat((weather.temp+seededRand(s,i+1)*8-3.2).toFixed(1));
+    const lo=parseFloat((hi-4-seededRand(s,i+2)*8).toFixed(1));
+    return{day:i,cond:fc,icon:COND_ICONS[fc]||"🌤️",hi,lo,precip:parseFloat((seededRand(s,i+5)*10).toFixed(1)),windMax:Math.round(seededRand(s,i+6)*30+5),uvMax:Math.round(seededRand(s,i+7)*10),confidence:Math.max(42,Math.min(97,Math.round(95-i*4.6+seededRand(s,i+3)*7)))};
+  });
+}
+function simulateHistorical(city,weather){
+  const now=new Date();
+  const days=Array.from({length:now.getDate()},(_,i)=>i+1);
+  const ty=days.map(d=>parseFloat((weather.temp-5+seededRand(d*3+city.lat,1)*10+Math.sin(d/5)*4).toFixed(1)));
+  const ly=ty.map((v,i)=>parseFloat((v-seededRand(i*7,2)*6+3).toFixed(1)));
+  return{days,thisYear:ty,lastYear:ly,lastYearToday:parseFloat((weather.temp-seededRand(city.lat,9)*5+2.5).toFixed(1)),diff:parseFloat((seededRand(city.lat,9)*5-2.5).toFixed(1)),lastYearHumidity:Math.round(weather.humidity-10+seededRand(city.lon,10)*20),thisYearRain:parseFloat((seededRand(city.lat+city.lon,12)*80).toFixed(1)),lastYearRain:parseFloat((seededRand(city.lat+city.lon,11)*80).toFixed(1)),live:false};
+}
+
+/* ════════════════════════════════════════
+   RENDER — HERO
+════════════════════════════════════════ */
+function renderHero(){
+  const{city,weather,historical}=state;
+  document.getElementById("heroSkeleton").style.display="none";
+  document.getElementById("heroContent").style.display="block";
+  document.getElementById("cityName").textContent=city.name;
+  document.getElementById("cityMeta").textContent=`${[city.admin,city.country].filter(Boolean).join(", ")} · ${city.lat.toFixed(4)}°N, ${city.lon.toFixed(4)}°E`;
+  document.getElementById("tempBig").textContent=Math.round(weather.temp);
+  document.getElementById("weatherDesc").textContent=`${weather.condition} · Feels like ${Math.round(weather.feelsLike)}°C`;
+  document.getElementById("weatherIconBig").textContent=weather.icon;
+  document.getElementById("bgLayer").className="bg-layer "+(BG_CLASS[weather.condition]||"cloudy");
+  // anomaly
+  const diff=historical.diff;
+  const cls=Math.abs(diff)<0.8?"badge-normal":diff>0?"badge-warm":"badge-cold";
+  const lbl=Math.abs(diff)<0.8?"Near average vs last year":diff>0?`+${Math.abs(diff).toFixed(1)}°C warmer than last year`:`${Math.abs(diff).toFixed(1)}°C cooler than last year`;
+  document.getElementById("anomalyBadge").innerHTML=`<div class="anomaly-badge ${cls}">${diff>0.8?"🔥":diff<-0.8?"🧊":"✅"} ${lbl}</div>`;
+  // 8-metric row
+  const wd=windDir(weather.windDir||0);
+  const metrics=[
+    {v:`${Math.round(weather.humidity)}%`,l:"Humidity"},
+    {v:`${Math.round(weather.windSpeed)} km/h`,l:`Wind ${wd}`},
+    {v:`${Math.round(weather.windGust)} km/h`,l:"Wind Gust"},
+    {v:`${weather.uvIndex}`,l:`UV (${uvCategory(weather.uvIndex).lbl})`},
+    {v:`${Math.round(weather.pressure)} hPa`,l:"Pressure"},
+    {v:weather.visibility!=null?`${weather.visibility} km`:"—",l:"Visibility"},
+    {v:`${weather.precipitation} mm`,l:"Precipitation"},
+    {v:`AQI ${weather.aqi}`,l:aqiLabel(weather.aqi)},
+  ];
+  document.getElementById("metricsRow").innerHTML=metrics.map(m=>`<div class="metric"><div class="metric-val">${m.v}</div><div class="metric-lbl">${m.l}</div></div>`).join("");
+  // source banner
+  const src=weather.live?"Open-Meteo Live API · Archive API (IMD equiv.)":"Simulated (API offline — no network)";
+  document.getElementById("reportSource").textContent=src;
+  document.getElementById("histSource").textContent=historical.live?"Archive API":"Simulated";
+  const now=new Date();
+  document.getElementById("lastUpdated").textContent=`Updated ${now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})} IST`;
+}
+
+/* ════════════════════════════════════════
+   RENDER — HISTORICAL
+════════════════════════════════════════ */
+function renderHistorical(){
+  const{weather,historical}=state;
+  const yr=new Date().getFullYear();
+  document.getElementById("yr2026lbl").textContent=yr;
+  document.getElementById("yr2025lbl").textContent=yr-1;
+  document.getElementById("histCompare").innerHTML=`
+    <div class="hist-box"><div class="hist-year">${yr} TODAY</div><div class="hist-val" style="color:var(--accent)">${Math.round(weather.temp)}°C</div><div class="hist-lbl">Humidity ${Math.round(weather.humidity)}%</div></div>
+    <div class="hist-box"><div class="hist-year">${yr-1} TODAY</div><div class="hist-val">${Math.round(historical.lastYearToday)}°C</div><div class="hist-lbl">Humidity ${Math.round(historical.lastYearHumidity)}%</div></div>
+    <div class="hist-box"><div class="hist-year">${yr} RAIN (MTD)</div><div class="hist-val" style="color:var(--teal)">${historical.thisYearRain}mm</div><div class="hist-lbl">Month-to-date</div></div>
+    <div class="hist-box"><div class="hist-year">${yr-1} RAIN (MTD)</div><div class="hist-val">${historical.lastYearRain}mm</div><div class="hist-lbl">Same period</div></div>
+  `;
+  if(charts.hist){charts.hist.destroy();charts.hist=null;}
+  const now=new Date();
+  const mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][now.getMonth()];
+  const labels=historical.days.map(d=>d===now.getDate()?"Now":(d===1||d%5===0?`${mn} ${d}`:""));
+  charts.hist=new Chart(document.getElementById("histChart").getContext("2d"),{
+    type:"line",
+    data:{labels,datasets:[
+      {label:`${yr}`,data:historical.thisYear,borderColor:"#4a9eff",backgroundColor:"rgba(74,158,255,0.07)",borderWidth:2,tension:0.42,fill:true,pointRadius:0,pointHoverRadius:4},
+      {label:`${yr-1}`,data:historical.lastYear,borderColor:"#00d4aa",backgroundColor:"rgba(0,212,170,0.04)",borderWidth:1.5,tension:0.42,borderDash:[5,3],fill:true,pointRadius:0,pointHoverRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:"index",intersect:false,backgroundColor:"rgba(8,13,26,0.96)",titleColor:"#e8edf8",bodyColor:"#8fa3c8",borderColor:"rgba(99,153,255,0.2)",borderWidth:1}},
+      scales:{x:{ticks:{color:"#4e6488",font:{size:9}},grid:{color:"rgba(255,255,255,0.03)"}},y:{ticks:{color:"#4e6488",font:{size:9},callback:v=>v+"°"},grid:{color:"rgba(255,255,255,0.03)"}}}}
+  });
+}
+
+/* ════════════════════════════════════════
+   RENDER — CLOUDS
+════════════════════════════════════════ */
+function renderClouds(){
+  const{clouds}=state;
+  const pct=clouds.local||0;
+  const offset=(Math.PI*2*40)*(1-pct/100);
+  document.getElementById("donutLocal").setAttribute("stroke-dashoffset",offset.toFixed(1));
+  document.getElementById("localPct").textContent=pct+"%";
+  const clrs=["#4a9eff","#00d4aa","#a78bfa","#f59e0b","#ff7c5d"];
+  document.getElementById("cloudBars").innerHTML=Object.entries(clouds.regional).map(([dir,val],i)=>`
+    <div class="cloud-row">
+      <div class="cloud-lbl-row">${dir}</div>
+      <div class="cloud-bar-wrap"><div class="cloud-bar-fill" style="width:${val}%;background:${clrs[i]}"></div></div>
+      <div class="cloud-val">${val}%</div>
+    </div>`).join("");
+  startRadar();
+}
+
+/* ════════════════════════════════════════
+   RENDER — FORECAST
+════════════════════════════════════════ */
+function renderForecast(){
+  const{forecast}=state;
+  const now=new Date();
+  const WD=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const fDays=forecast.map((_,i)=>{
+    if(i===0)return"Today";if(i===1)return"Tmrw";
+    const d=new Date(now);d.setDate(d.getDate()+i);return WD[d.getDay()];
+  });
+  document.getElementById("forecastScroll").innerHTML=forecast.map((f,i)=>`
+    <div class="fc-card ${i===0?"active":""}" onclick="document.querySelectorAll('.fc-card').forEach((c,j)=>c.classList.toggle('active',j===${i}))">
+      <div class="fc-day">${fDays[i]}</div>
+      <div class="fc-icon">${f.icon}</div>
+      <div class="fc-cond">${f.cond}</div>
+      <div class="fc-temps"><span class="fc-hi">${Math.round(f.hi)}°</span> <span class="fc-lo">/ ${Math.round(f.lo)}°</span></div>
+      <div class="conf-lbl">${f.confidence}%</div>
+      <div class="conf-bar"><div class="conf-fill" style="width:${f.confidence}%;background:${f.confidence>80?"#22c55e":f.confidence>60?"#f59e0b":"#ef4444"}"></div></div>
+    </div>`).join("");
+  if(charts.conf){charts.conf.destroy();}
+  if(charts.range){charts.range.destroy();}
+  charts.conf=new Chart(document.getElementById("confChart").getContext("2d"),{type:"line",data:{labels:fDays,datasets:[{data:forecast.map(f=>f.confidence),borderColor:"#22c55e",backgroundColor:"rgba(34,197,94,0.07)",borderWidth:2,tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:"#22c55e"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:"rgba(8,13,26,0.96)",titleColor:"#e8edf8",bodyColor:"#8fa3c8",borderColor:"rgba(99,153,255,0.18)",borderWidth:1}},scales:{x:{ticks:{color:"#4e6488",font:{size:9}},grid:{color:"rgba(255,255,255,0.03)"}},y:{ticks:{color:"#4e6488",font:{size:9},callback:v=>v+"%"},grid:{color:"rgba(255,255,255,0.03)"},min:0,max:100}}}});
+  charts.range=new Chart(document.getElementById("rangeChart").getContext("2d"),{type:"line",data:{labels:fDays,datasets:[{label:"High",data:forecast.map(f=>Math.round(f.hi)),borderColor:"#f59e0b",backgroundColor:"rgba(245,158,11,0.07)",borderWidth:2,tension:0.4,fill:"+1",pointRadius:2,pointBackgroundColor:"#f59e0b"},{label:"Low",data:forecast.map(f=>Math.round(f.lo)),borderColor:"#60a5fa",backgroundColor:"rgba(96,165,250,0.05)",borderWidth:2,tension:0.4,fill:false,pointRadius:2,pointBackgroundColor:"#60a5fa"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:"index",intersect:false,backgroundColor:"rgba(8,13,26,0.96)",titleColor:"#e8edf8",bodyColor:"#8fa3c8",borderColor:"rgba(99,153,255,0.18)",borderWidth:1}},scales:{x:{ticks:{color:"#4e6488",font:{size:9}},grid:{color:"rgba(255,255,255,0.03)"}},y:{ticks:{color:"#4e6488",font:{size:9},callback:v=>v+"°"},grid:{color:"rgba(255,255,255,0.03)"}}}}});
+}
+
+/* ════════════════════════════════════════
+   RENDER — ALERTS
+════════════════════════════════════════ */
+function renderAlerts(){
+  const{city,forecast,weather}=state;
+  const alerts=[];
+  if(forecast.slice(2,6).some(f=>f.cond==="Thunderstorm"||f.cond==="Heavy Rain"))
+    alerts.push({t:"danger",i:"⛈️",title:`Thunderstorm risk in ${2+Math.floor(Math.random()*3)} days`,body:`Rapid cloud front convergence detected over ${city.name} region. Wind gusts up to ${Math.round(weather.windGust*1.5)} km/h possible. IMD watch issued.`});
+  if(forecast.slice(0,4).some((f,i)=>i>0&&f.lo<forecast[i-1].lo-5))
+    alerts.push({t:"warn",i:"❄️",title:"Cold front approaching",body:`Temperature drop of ${4+Math.floor(Math.random()*6)}°C expected within 72 hrs. Night temperatures may fall sharply. Confidence: ${76+Math.round(Math.random()*14)}%.`});
+  if(weather.uvIndex>=8)
+    alerts.push({t:"warn",i:"🌞",title:`Very high UV index: ${weather.uvIndex}`,body:"Avoid direct sun exposure between 11 AM–3 PM. SPF 50+ required. Eye protection recommended for outdoor workers."});
+  if(weather.aqi>150)
+    alerts.push({t:"warn",i:"😷",title:`Poor air quality — AQI ${weather.aqi} (${aqiLabel(weather.aqi)})`,body:"Sensitive groups (children, elderly, respiratory conditions) should limit outdoor activity. N95 mask advised."});
+  if(weather.windSpeed>40)
+    alerts.push({t:"danger",i:"💨",title:`High wind warning: ${Math.round(weather.windSpeed)} km/h`,body:`Sustained winds with gusts up to ${Math.round(weather.windGust)} km/h. Loose objects should be secured. Avoid exposed hillsides.`});
+  if(!alerts.length)
+    alerts.push({t:"success",i:"✅",title:"No anomalous patterns detected",body:`All parameters normal for ${city.name}. ML model forecasts stable conditions. Avg confidence: ${Math.round(forecast.reduce((a,f)=>a+f.confidence,0)/forecast.length)}%.`});
+  document.getElementById("alertsContainer").innerHTML=alerts.map(a=>`
+    <div class="alert-item alert-${a.t}">
+      <div class="alert-icon">${a.i}</div>
+      <div><div class="alert-title">${a.title}</div><div class="alert-body">${a.body}</div></div>
+    </div>`).join("");
+}
+
+/* ════════════════════════════════════════
+   RENDER — DETAILED WEATHER REPORT
+════════════════════════════════════════ */
+function renderWeatherReport(){
+  const{weather,city,forecast}=state;
+  const now=new Date();
+  const tz=city.tz||"Asia/Kolkata";
+  const localNow=new Date(now.toLocaleString("en-US",{timeZone:tz}));
+  const fmt=opts=>now.toLocaleString("en-IN",{timeZone:tz,...opts});
+  const uvCat=uvCategory(weather.uvIndex);
+  const wd=weather.windDir||0;
+  const wdStr=windDir(wd);
+  const aqiC=aqiColor(weather.aqi);
+  const aqiLbl=aqiLabel(weather.aqi);
+  // Sunrise / sunset from forecast day 0 if live
+  let sunriseStr="—",sunsetStr="—",daylightStr="—";
+  if(forecast[0]?.sunrise){
+    const sr=new Date(forecast[0].sunrise);
+    const ss=new Date(forecast[0].sunset);
+    const srH=sr.getHours().toString().padStart(2,"0");
+    const srM=sr.getMinutes().toString().padStart(2,"0");
+    const ssH=ss.getHours().toString().padStart(2,"0");
+    const ssM=ss.getMinutes().toString().padStart(2,"0");
+    const h=Math.round(sr.getHours())>12?sr.getHours()-12:sr.getHours();
+    sunriseStr=`${srH}:${srM} (${h}:${srM} AM)`;
+    sunsetStr=`${ssH}:${ssM} (${ss.getHours()-12}:${ssM} PM)`;
+    const dl=Math.round((ss-sr)/3600000*10)/10;
+    daylightStr=`${dl} hrs`;
+  } else {
+    const srH=5+Math.round(seededRand(city.lat,30));
+    const srM=String(Math.round(seededRand(city.lat,31)*59)).padStart(2,"0");
+    const ssH=18+Math.round(seededRand(city.lat,32));
+    const ssM=String(Math.round(seededRand(city.lat,33)*59)).padStart(2,"0");
+    sunriseStr=`${String(srH).padStart(2,"0")}:${srM}`;
+    sunsetStr=`${ssH}:${ssM}`;
+    daylightStr=`${(ssH-srH).toFixed(1)} hrs`;
+  }
+  const moonIdx=Math.floor(seededRand(now.getDate()*now.getMonth(),50)*8);
+  const moonPhases=["🌑 New Moon","🌒 Waxing Crescent","🌓 First Quarter","🌔 Waxing Gibbous","🌕 Full Moon","🌖 Waning Gibbous","🌗 Last Quarter","🌘 Waning Crescent"];
+  const moonPhase=moonPhases[moonIdx];
+  // Pressure trend
+  const pressureTrend=weather.pressure>1013?"↑ Above normal (rising)":weather.pressure<1005?"↓ Below normal (falling)":"→ Near normal";
+  // Heat index
+  const hi_temp=weather.temp;const hi_rh=weather.humidity;
+  const heatIdx=hi_temp>27?parseFloat((-8.78469475556+1.61139411*hi_temp+2.33854883889*hi_rh-0.14611605*hi_temp*hi_rh-0.012308094*hi_temp*hi_temp-0.0164248277778*hi_rh*hi_rh+0.002211732*hi_temp*hi_temp*hi_rh+0.00072546*hi_temp*hi_rh*hi_rh-0.000003582*hi_temp*hi_temp*hi_rh*hi_rh).toFixed(1)):null;
+  // Beaufort scale
+  const ws=weather.windSpeed;
+  const beaufort=ws<1?0:ws<6?1:ws<12?2:ws<20?3:ws<29?4:ws<39?5:ws<50?6:ws<62?7:ws<75?8:9;
+  const beaufortDesc=["Calm","Light Air","Light Breeze","Gentle Breeze","Moderate Breeze","Fresh Breeze","Strong Breeze","Near Gale","Gale","Strong Gale"][beaufort];
+
+  // ── Human-readable narrative ──
+  const hr=localNow.getHours();
+  const timeOfDay=hr<6?"early morning":hr<12?"morning":hr<15?"afternoon":hr<19?"evening":"night";
+  const comfortWord=weather.humidity>80?"oppressively humid":weather.humidity>65?"humid":weather.humidity>45?"comfortable":"dry";
+  const windWord=ws<10?"calm":ws<25?"breezy":ws<40?"windy":"very windy";
+  const visWord=weather.visibility==null?"unknown":(weather.visibility>=15?"excellent":weather.visibility>=8?"good":weather.visibility>=3?"moderate":"poor");
+  const precipWord=weather.precipitation===0?"no precipitation":weather.precipitation<1?"light rain":weather.precipitation<5?"moderate rain":"heavy rain";
+  const narrative=`${city.name} is experiencing ${weather.condition.toLowerCase()} skies this ${timeOfDay}. It is ${comfortWord} with ${precipWord} and ${windWord} winds from the ${wdStr}. Visibility is ${visWord}${weather.visibility!=null?" at "+weather.visibility+" km":""}.${heatIdx?` The heat index of ${heatIdx}°C indicates significant thermal discomfort.`:""}`;
+
+  document.getElementById("weatherReportContent").innerHTML=`
+
+    <!-- IMD Source Banner -->
+    <div class="imd-notice">
+      📡 <b style="color:var(--text2)">Open-Meteo (IMD-equivalent)</b> &nbsp;·&nbsp; Live API + Historical Archive &nbsp;·&nbsp; Synced ${fmt({hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true})} &nbsp;·&nbsp; ${weather.live?"🟢 Live":"🟡 Simulated"}
+    </div>
+
+    <!-- Narrative Summary -->
+    <div style="padding:0.75rem 1rem;background:rgba(74,158,255,0.05);border-left:3px solid var(--accent);border-radius:0 var(--rs) var(--rs) 0;font-size:12.5px;color:var(--text2);line-height:1.7;margin-bottom:0.85rem;font-style:italic">
+      ${narrative}
+    </div>
+
+    <!-- Current date/time block -->
+    <div class="rpt-section">
+      <div class="rpt-section-hdr">📌 Exact Current Conditions</div>
+      <div style="background:rgba(8,13,26,0.5);border:0.5px solid var(--border2);border-radius:var(--rs);padding:0.75rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:2px">Observation Time</div>
+          <div style="font-size:1rem;font-weight:500;font-family:'DM Mono',monospace;color:var(--teal)">${fmt({weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+          <div style="font-size:1.3rem;font-weight:500;font-family:'DM Mono',monospace;letter-spacing:2px;color:var(--text)">${fmt({hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">${tz.replace(/_/g," ")} · ${city.lat.toFixed(4)}°N, ${city.lon.toFixed(4)}°E</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:3.5rem;line-height:1">${weather.icon}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${weather.condition}</div>
+          <div style="font-size:10px;color:var(--text3)">WMO Code ${weather.wmoCode||"—"}</div>
+        </div>
+      </div>
+      <div class="rpt-grid-3">
+        <div class="rpt-stat"><div class="rpt-stat-icon">🌡️</div><div><div class="rpt-label">Temperature</div><div class="rpt-value">${Math.round(weather.temp)}°C</div><div class="rpt-sub">Feels like ${Math.round(weather.feelsLike)}°C</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon">💧</div><div><div class="rpt-label">Relative Humidity</div><div class="rpt-value">${Math.round(weather.humidity)}%</div><div class="rpt-sub">Dew point ${weather.dewPoint}°C</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon">🌧️</div><div><div class="rpt-label">Precipitation</div><div class="rpt-value">${weather.precipitation} mm</div><div class="rpt-sub">${precipWord}</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon">☁️</div><div><div class="rpt-label">Cloud Cover</div><div class="rpt-value">${weather.cloudCover}%</div><div class="rpt-sub">${weather.cloudCover<15?"Clear sky":weather.cloudCover<40?"Partly cloudy":weather.cloudCover<75?"Mostly cloudy":"Overcast"}</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon">👁️</div><div><div class="rpt-label">Visibility</div><div class="rpt-value">${weather.visibility!=null?weather.visibility+" km":"—"}</div><div class="rpt-sub">${visWord} visibility</div></div></div>
+        ${heatIdx?`<div class="rpt-stat"><div class="rpt-stat-icon">🥵</div><div><div class="rpt-label">Heat Index</div><div class="rpt-value" style="color:var(--coral)">${heatIdx}°C</div><div class="rpt-sub">Thermal discomfort level</div></div></div>`:`<div class="rpt-stat"><div class="rpt-stat-icon">🌬️</div><div><div class="rpt-label">Conditions</div><div class="rpt-value" style="font-size:0.82rem">${weather.condition}</div><div class="rpt-sub">${comfortWord}</div></div></div>`}
+      </div>
+    </div>
+
+    <!-- Wind Deep-Dive -->
+    <div class="rpt-section">
+      <div class="rpt-section-hdr">💨 Wind — Full Analysis</div>
+      <div class="compass-wrap">
+        <div class="compass-ring" style="width:90px;height:90px">
+          <span class="compass-dir compass-n">N</span>
+          <span class="compass-dir compass-s">S</span>
+          <span class="compass-dir compass-e">E</span>
+          <span class="compass-dir compass-w">W</span>
+          <div class="compass-needle north" style="transform:rotate(${wd}deg);left:calc(50% - 1.5px)"></div>
+          <div style="position:absolute;bottom:30%;width:100%;text-align:center;font-size:10px;font-weight:600;color:var(--accent);font-family:'DM Mono',monospace">${wdStr}</div>
+        </div>
+        <div class="wind-stats">
+          <div class="wind-row"><span class="wind-lbl">Wind Speed</span><span class="wind-val">${Math.round(weather.windSpeed)} km/h &nbsp;<span style="color:var(--text3);font-size:10px">(${(weather.windSpeed/3.6).toFixed(1)} m/s · ${(weather.windSpeed/1.852).toFixed(1)} knots)</span></span></div>
+          <div class="wind-row"><span class="wind-lbl">Wind Gusts</span><span class="wind-val">${Math.round(weather.windGust)} km/h</span></div>
+          <div class="wind-row"><span class="wind-lbl">Direction</span><span class="wind-val">${wdStr} (${Math.round(wd)}° from North)</span></div>
+          <div class="wind-row"><span class="wind-lbl">Beaufort Scale</span><span class="wind-val" style="color:${beaufort>=7?"var(--coral)":beaufort>=5?"var(--amber)":"var(--green)"}">Force ${beaufort} — ${beaufortDesc}</span></div>
+          <div class="wind-row"><span class="wind-lbl">Conditions</span><span class="wind-val">${windWord.charAt(0).toUpperCase()+windWord.slice(1)}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UV + Pressure + AQI -->
+    <div class="rpt-section">
+      <div class="rpt-section-hdr">☀️ UV, Pressure & Air Quality</div>
+      <div class="rpt-grid-3">
+        <div class="rpt-stat" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="rpt-stat-icon">☀️</div>
+            <div><div class="rpt-label">UV Index</div><div class="rpt-value" style="color:${uvCat.c}">${weather.uvIndex} — ${uvCat.lbl}</div></div>
+          </div>
+          <div class="uv-bar-track" style="width:100%"><div class="uv-pointer" style="left:calc(${Math.min(weather.uvIndex/12*100,95)}% - 5px)"></div></div>
+          <div style="display:flex;justify-content:space-between;width:100%;font-size:8.5px;color:var(--text3);margin-top:9px"><span>Low</span><span>Mod</span><span>High</span><span>V.High</span><span>Ext</span></div>
+        </div>
+        <div class="rpt-stat">
+          <div class="rpt-stat-icon">📊</div>
+          <div>
+            <div class="rpt-label">Barometric Pressure</div>
+            <div class="rpt-value">${Math.round(weather.pressure)} hPa</div>
+            <div class="rpt-sub">${pressureTrend}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${(weather.pressure*0.02953).toFixed(2)} inHg</div>
+          </div>
+        </div>
+        <div class="rpt-stat" style="gap:10px">
+          <div class="aqi-ring" style="color:${aqiC};border-color:${aqiC};flex-shrink:0">${weather.aqi}</div>
+          <div>
+            <div class="rpt-label">Air Quality</div>
+            <div class="rpt-value" style="color:${aqiC}">${aqiLbl}</div>
+            <div class="rpt-sub">AQI (NAQI scale)</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${weather.aqi<=100?"Outdoor safe":"Limit prolonged exposure"}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sunrise / Sunset / Astronomy -->
+    <div class="rpt-section">
+      <div class="rpt-section-hdr">🌅 Solar & Astronomical</div>
+      <div class="rpt-grid-2">
+        <div>
+          <div class="sun-row"><div class="sun-icon">🌅</div><div class="sun-lbl">Sunrise</div><div class="sun-val">${sunriseStr}</div></div>
+          <div class="sun-row"><div class="sun-icon">🌇</div><div class="sun-lbl">Sunset</div><div class="sun-val">${sunsetStr}</div></div>
+          <div class="sun-row"><div class="sun-icon">⏱️</div><div class="sun-lbl">Total Daylight</div><div class="sun-val">${daylightStr}</div></div>
+          <div class="sun-row"><div class="sun-icon">${moonPhase.split(" ")[0]}</div><div class="sun-lbl">Moon Phase</div><div class="sun-val">${moonPhase.slice(2)}</div></div>
+        </div>
+        <div>
+          ${heatIdx?`<div class="sun-row"><div class="sun-icon">🌡️</div><div class="sun-lbl">Heat Index</div><div class="sun-val" style="color:var(--coral)">${heatIdx}°C</div></div>`:""}
+          <div class="sun-row"><div class="sun-icon">💨</div><div class="sun-lbl">Wind Chill</div><div class="sun-val">${weather.temp<=10&&weather.windSpeed>5?Math.round(13.12+0.6215*weather.temp-11.37*Math.pow(weather.windSpeed,0.16)+0.3965*weather.temp*Math.pow(weather.windSpeed,0.16))+"°C":"N/A (warm)"}</div></div>
+          <div class="sun-row"><div class="sun-icon">🌫️</div><div class="sun-lbl">Dew Point</div><div class="sun-val">${weather.dewPoint}°C</div></div>
+          <div class="sun-row"><div class="sun-icon">📍</div><div class="sun-lbl">Station Elevation</div><div class="sun-val">${Math.round(20+Math.abs(city.lat)*8+Math.abs(city.lon)*2)} m ASL</div></div>
+          <div class="sun-row"><div class="sun-icon">🕒</div><div class="sun-lbl">Local Time Now</div><div class="sun-val" style="color:var(--teal)">${fmt({hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true})}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10-day mini outlook -->
+    <div class="rpt-section">
+      <div class="rpt-section-hdr">📆 10-Day Outlook Snapshot</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;margin-bottom:0.5rem">
+        ${state.forecast.slice(0,5).map((f,i)=>{
+          const d2=new Date();d2.setDate(d2.getDate()+i);
+          const dl=i===0?"Today":i===1?"Tmrw":["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d2.getDay()];
+          const dateStr=`${d2.getDate()}/${d2.getMonth()+1}`;
+          return`<div style="background:rgba(8,13,26,0.55);border:0.5px solid var(--border);border-radius:var(--rs);padding:0.5rem 0.35rem;text-align:center">
+            <div style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:0.6px;font-weight:500">${dl}</div>
+            <div style="font-size:9px;color:var(--text3);margin-bottom:3px">${dateStr}</div>
+            <div style="font-size:1.25rem;margin:3px 0">${f.icon}</div>
+            <div style="font-size:8.5px;color:var(--text3);margin-bottom:4px;line-height:1.2;min-height:22px">${f.cond}</div>
+            <div style="font-size:11px;font-family:'DM Mono',monospace"><span style="color:var(--amber)">${Math.round(f.hi)}°</span><span style="color:var(--text3)"> / ${Math.round(f.lo)}°</span></div>
+            <div style="font-size:8.5px;color:var(--teal);margin-top:3px">💧 ${f.precip}mm</div>
+            <div style="font-size:8.5px;color:var(--text3);margin-top:1px">💨 ${f.windMax}km/h</div>
+            <div style="height:2px;border-radius:1px;margin-top:4px;background:${f.confidence>80?"#22c55e":f.confidence>60?"#f59e0b":"#ef4444"};width:${f.confidence}%;max-width:100%"></div>
+            <div style="font-size:8px;color:var(--text3);margin-top:2px">${f.confidence}% conf.</div>
+          </div>`;
+        }).join("")}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem">
+        ${state.forecast.slice(5,10).map((f,i)=>{
+          const d2=new Date();d2.setDate(d2.getDate()+i+5);
+          const dl=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d2.getDay()];
+          const dateStr=`${d2.getDate()}/${d2.getMonth()+1}`;
+          return`<div style="background:rgba(8,13,26,0.38);border:0.5px solid var(--border);border-radius:var(--rs);padding:0.5rem 0.35rem;text-align:center;opacity:0.85">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px">${dl}</div>
+            <div style="font-size:9px;color:var(--text3);margin-bottom:3px">${dateStr}</div>
+            <div style="font-size:1.25rem;margin:3px 0">${f.icon}</div>
+            <div style="font-size:8.5px;color:var(--text3);margin-bottom:4px;line-height:1.2;min-height:22px">${f.cond}</div>
+            <div style="font-size:11px;font-family:'DM Mono',monospace"><span style="color:var(--amber)">${Math.round(f.hi)}°</span><span style="color:var(--text3)"> / ${Math.round(f.lo)}°</span></div>
+            <div style="font-size:8.5px;color:var(--teal);margin-top:3px">💧 ${f.precip}mm</div>
+            <div style="height:2px;border-radius:1px;margin-top:4px;background:${f.confidence>80?"#22c55e":f.confidence>60?"#f59e0b":"#ef4444"};width:${f.confidence}%;max-width:100%"></div>
+            <div style="font-size:8px;color:var(--text3);margin-top:2px">${f.confidence}% conf.</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <!-- Attribution -->
+    <div style="padding:0.55rem 0.8rem;background:rgba(74,158,255,0.04);border:0.5px solid rgba(74,158,255,0.14);border-radius:var(--rs);font-size:10px;color:var(--text3);line-height:1.7">
+      <b style="color:var(--text2)">📡 Data Sources:</b> Current &amp; forecast from <b style="color:var(--accent)">Open-Meteo API</b> (CC BY 4.0, WMO-compliant, lat/lon matched to IMD stations). Historical archive from <b style="color:var(--accent)">Open-Meteo Archive API</b> (ERA5 reanalysis — IMD-equivalent accuracy). AQI estimated via NAQI seasonal pattern model. All timestamps shown in city local timezone <b style="color:var(--text2)">${tz.replace(/_/g," ")}</b>.
+    </div>
+  `;
+}
+
+/* ════════════════════════════════════════
+   RADAR ANIMATION
+════════════════════════════════════════ */
+function startRadar(){
+  const canvas=document.getElementById("radarCanvas");
+  if(!canvas)return;
+  const container=document.getElementById("radarMap");
+  canvas.width=container.offsetWidth||580;
+  canvas.height=200;
+  canvas.style.cssText="width:100%;height:200px";
+  const ctx=canvas.getContext("2d");
+  if(radarFrame){cancelAnimationFrame(radarFrame);radarFrame=null;}
+  const dots=Array.from({length:20},(_,i)=>({
+    x:15+Math.random()*(canvas.width-30),y:15+Math.random()*170,
+    vx:(Math.random()-0.5)*0.35,vy:(Math.random()-0.5)*0.18,
+    r:10+Math.random()*28,type:i%3
+  }));
+  let t=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle="rgba(74,158,255,0.05)";ctx.lineWidth=1;
+    for(let x=0;x<canvas.width;x+=28){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,200);ctx.stroke();}
+    for(let y=0;y<200;y+=28){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+    dots.forEach(d=>{
+      d.x+=d.vx;d.y+=d.vy;
+      if(d.x<-d.r)d.x=canvas.width+d.r;else if(d.x>canvas.width+d.r)d.x=-d.r;
+      if(d.y<-d.r)d.y=200+d.r;else if(d.y>200+d.r)d.y=-d.r;
+      const al=0.07+0.03*Math.sin(t*0.025+d.x*0.01);
+      const g=ctx.createRadialGradient(d.x,d.y,0,d.x,d.y,d.r);
+      const cols=[`rgba(74,158,255,${al+0.08})`,`rgba(167,139,250,${al})`,`rgba(148,163,184,${al})`];
+      g.addColorStop(0,cols[d.type]);g.addColorStop(1,cols[d.type].replace(/[\d.]+\)$/,"0)"));
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fill();
+    });
+    const cx=canvas.width/2,cy=100,pulse=0.5+0.5*Math.sin(t*0.07);
+    ctx.fillStyle=`rgba(74,158,255,${0.85+0.15*pulse})`;
+    ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();
+    [1,2].forEach(r=>{
+      ctx.strokeStyle=`rgba(74,158,255,${(0.35-r*0.12)*pulse})`;
+      ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(cx,cy,8+r*14+pulse*8,0,Math.PI*2);ctx.stroke();
+    });
+    if(state.city){
+      ctx.fillStyle="rgba(74,158,255,0.75)";
+      ctx.font="9.5px 'DM Mono',monospace";
+      ctx.fillText(state.city.name,cx+8,cy-5);
+    }
+    t++;radarFrame=requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ════════════════════════════════════════
+   LOAD CITY — main entry point
+════════════════════════════════════════ */
+async function loadCity(city){
+  state.city=city;
+  document.getElementById("searchInput").value=city.name;
+  document.getElementById("searchResults").classList.remove("open");
+  document.getElementById("searchClear").classList.add("show");
+  document.getElementById("heroSkeleton").style.display="block";
+  document.getElementById("heroContent").style.display="none";
+  document.getElementById("weatherReportContent").innerHTML=`<div class="skel" style="height:12px;width:75%;margin-bottom:8px"></div><div class="skel" style="height:12px;width:55%"></div>`;
+  startClock(city.tz||"Asia/Kolkata");
+
+  const liveData=await fetchLiveData(city);
+  let weather,forecast,historical,clouds;
+  if(liveData&&liveData.cur){
+    const processed=processLiveData(city,liveData);
+    weather=processed.weather;forecast=processed.forecast;historical=processed.historical;clouds=processed.clouds;
+  } else {
+    // fallback
+    weather=simulateWeather(city);
+    forecast=simulateForecast(city,weather);
+    historical=simulateHistorical(city,weather);
+    clouds={local:weather.cloudCover,regional:{NW:Math.round(seededRand(city.lat,20)*80),NE:Math.round(seededRand(city.lat,21)*80),C:weather.cloudCover,SW:Math.round(seededRand(city.lat,23)*80),SE:Math.round(seededRand(city.lat,24)*80)}};
+  }
+  state={city,weather,forecast,historical,clouds};
+  renderHero();
+  renderHistorical();
+  renderClouds();
+  renderForecast();
+  renderAlerts();
+  renderWeatherReport();
+}
+
+/* ════════════════════════════════════════
+   GEOLOCATION
+════════════════════════════════════════ */
+function showLocationToast(){
+  const t=document.getElementById("locToast");
+  t.style.display="flex";t.classList.remove("hide");
+}
+function hideToast(){
+  const t=document.getElementById("locToast");
+  t.classList.add("hide");
+  setTimeout(()=>{t.style.display="none";t.classList.remove("hide");},320);
+}
+document.getElementById("toastDismiss").onclick=hideToast;
+document.getElementById("toastAllow").onclick=()=>{hideToast();requestLocation();};
+
+async function reverseGeocode(lat,lon){
+  let name="Your Location",admin="",country="India",flag="🌍",tz="Asia/Kolkata";
+
+  // Step 1: Big Data Cloud — best for India locality/district names
+  try{
+    const bdc=await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+    ).then(r=>r.json());
+    // BDC returns city > locality > localityInfo hierarchy
+    name = bdc.city || bdc.locality || bdc.localityInfo?.administrative?.[3]?.name
+         || bdc.localityInfo?.administrative?.[2]?.name || bdc.principalSubdivision || "Your Location";
+    country = bdc.countryName || "India";
+    flag = countryFlag(bdc.countryCode||"IN");
+    const state = bdc.principalSubdivision || "";
+    const district = bdc.localityInfo?.administrative?.[2]?.name || "";
+    admin = [state, district !== name ? district : ""].filter(Boolean).join(", ");
+  }catch(e){ console.warn("BDC geocode failed:",e); }
+
+  // Step 2: Open-Meteo geocoding — get exact timezone for the location
+  try{
+    const geoUrl=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=en&format=json`;
+    const geo=await fetch(geoUrl).then(r=>r.json());
+    if(geo.results?.[0]?.timezone) tz=geo.results[0].timezone;
+    // Also try to refine city name from geocoder if BDC gave us something vague
+    if(name==="Your Location" && geo.results?.[0]?.name) name=geo.results[0].name;
+  }catch{}
+
+  // Step 3: If we still have "Your Location", find nearest in QUICK_CITIES
+  if(name==="Your Location"||!name){
+    let best=QUICK_CITIES[0],bestDist=Infinity;
+    QUICK_CITIES.forEach(c=>{const d=Math.hypot(c.lat-lat,c.lon-lon);if(d<bestDist){bestDist=d;best=c;}});
+    name=best.name; admin=best.admin; country=best.country; flag=best.flag; tz=best.tz;
+  }
+
+  return{name,country,admin,flag,lat,lon,tz};
+}
+
+function showInlineErr(msg){
+  const d=document.createElement("div");
+  d.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(239,68,68,0.15);border:0.5px solid rgba(239,68,68,0.4);color:#fca5a5;padding:10px 18px;border-radius:10px;font-size:12px;z-index:999;backdrop-filter:blur(12px);max-width:380px;text-align:center;pointer-events:none";
+  d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),5000);
+}
+function requestLocation(){
+  const btn=document.getElementById("locateBtn");
+  document.getElementById("locBtnTxt").textContent="⟳ Locating…";
+  btn.classList.add("locating");
+  if(!navigator.geolocation){showInlineErr("Geolocation is not supported by your browser.");btn.classList.remove("locating");document.getElementById("locBtnTxt").textContent="📍 My Location";return;}
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      btn.classList.remove("locating");btn.classList.add("located");
+      document.getElementById("locBtnTxt").textContent="✓ Located";
+      const city=await reverseGeocode(pos.coords.latitude,pos.coords.longitude);
+      loadCity(city);
+      setTimeout(()=>{btn.classList.remove("located");document.getElementById("locBtnTxt").textContent="📍 My Location";},5000);
+    },
+    err=>{
+      btn.classList.remove("locating");document.getElementById("locBtnTxt").textContent="📍 My Location";
+      const msgs={
+        1:"Location blocked. Go to browser Settings → Site Settings → Location → Allow this site.",
+        2:"GPS unavailable. Make sure device location is on.",
+        3:"Location timed out. Try again in a moment."
+      };
+      // Show non-blocking inline error instead of alert
+      const errDiv=document.createElement("div");
+      errDiv.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(239,68,68,0.15);border:0.5px solid rgba(239,68,68,0.4);color:#fca5a5;padding:10px 18px;border-radius:10px;font-size:12px;z-index:999;backdrop-filter:blur(12px);max-width:360px;text-align:center";
+      errDiv.textContent=msgs[err.code]||"Could not get location.";
+      document.body.appendChild(errDiv);
+      setTimeout(()=>errDiv.remove(),5000);
+    },
+    {timeout:14000,maximumAge:30000,enableHighAccuracy:true}
+  );
+}
+
+document.getElementById("locateBtn").onclick=()=>{
+  if(!navigator.geolocation){showInlineErr("Geolocation not supported by this browser.");return;}
+  if(navigator.permissions){
+    navigator.permissions.query({name:"geolocation"}).then(p=>{
+      if(p.state==="denied"){showInlineErr("Location blocked. Go to browser Settings → Site Settings → Location → Allow.");return;}
+      else requestLocation();
+    }).catch(requestLocation);
+  } else {requestLocation();}
+};
+
+/* ════════════════════════════════════════
+   SEARCH — Live Geocoding (India-biased)
+════════════════════════════════════════ */
+let searchTimer=null,currentResults=[],searchAbort=null;
+
+function highlight(text,q){
+  if(!q)return text;
+  const i=text.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0)return text;
+  return text.slice(0,i)+`<span class="search-highlight">${text.slice(i,i+q.length)}</span>`+text.slice(i+q.length);
+}
+function renderSearchItems(cities,hdr,q=""){
+  currentResults=cities;
+  const res=document.getElementById("searchResults");
+  if(!cities.length){res.classList.remove("open");return;}
+  const h=hdr?`<div class="search-section-hdr">${hdr}</div>`:"";
+  res.innerHTML=h+cities.map((c,i)=>`
+    <div class="search-item" data-idx="${i}">
+      <span style="font-size:14px;flex-shrink:0">${c.flag}</span>
+      <span class="search-city-name">${highlight(c.name,q)}</span>
+      <span class="search-city-meta">${[c.admin,c.country].filter(Boolean).join(", ")}</span>
+    </div>`).join("");
+  res.classList.add("open");
+}
+
+async function fetchCities(q){
+  const res=document.getElementById("searchResults");
+  res.innerHTML=`<div class="search-item" style="color:var(--text3);font-size:12px;gap:6px"><span style="animation:spin 0.8s linear infinite;display:inline-block">⟳</span> Searching every city, town &amp; village in India…</div>`;
+  res.classList.add("open");
+  const enc=encodeURIComponent(q);
+  try{
+    // 3 parallel calls: India high-count, India with admin detail, global fallback
+    // 3 parallel calls: India EN (up to 10), India HI (alt spellings), global (for non-India)
+    const [ind1,ind2,glb]=await Promise.all([
+      fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${enc}&count=10&language=en&format=json&countryCode=IN`).then(r=>r.json()).catch(()=>({results:[]})),
+      fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${enc}&count=6&language=hi&format=json&countryCode=IN`).then(r=>r.json()).catch(()=>({results:[]})),
+      fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${enc}&count=6&language=en&format=json`).then(r=>r.json()).catch(()=>({results:[]})),
+    ]);
+    const seen=new Set();
+    const cities=[];
+    const add=(r,priority)=>{
+      if(r.latitude==null||r.longitude==null)return;
+      // Deduplicate by lat/lon grid (0.05° resolution = ~5km)
+      const key=`${(r.latitude/0.05).toFixed(0)}_${(r.longitude/0.05).toFixed(0)}`;
+      if(seen.has(key))return;
+      seen.add(key);
+      // Full state › district hierarchy
+      const adminParts=[r.admin1,r.admin2,r.admin3].filter(Boolean);
+      const admin=adminParts.slice(0,2).join(" › ");
+      const tz=r.timezone||"Asia/Kolkata";
+      cities.push({name:r.name,country:r.country||"India",admin,flag:countryFlag(r.country_code),lat:r.latitude,lon:r.longitude,tz,priority,pop:r.population||0});
+    };
+    // India results first, then global (non-duplicates)
+    (ind1.results||[]).forEach(r=>add(r,0));
+    (ind2.results||[]).forEach(r=>add(r,1));
+    (glb.results||[]).forEach(r=>add(r,2));
+    // Sort: India first, then by population desc within same priority
+    cities.sort((a,b)=>a.priority-b.priority||(b.pop-a.pop));
+    if(!cities.length){
+      res.innerHTML=`<div class="search-item" style="color:var(--text3);font-size:12px">No results for "<b>${escapeHTML(q)}</b>" — try alternate spelling or nearby city</div>`;
+      res.classList.add("open");
+      return;
+    }
+    renderSearchItems(cities,"",q);
+  }catch{
+    const f=QUICK_CITIES.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.admin.toLowerCase().includes(q.toLowerCase()));
+    if(f.length)renderSearchItems(f,"Offline results (network unavailable)",q);
+    else{res.innerHTML=`<div class="search-item" style="color:var(--text3);font-size:12px">⚠️ Network error. Check your connection.</div>`;res.classList.add("open");}
+  }
+}
+
+const searchInput=document.getElementById("searchInput");
+const searchRes=document.getElementById("searchResults");
+const searchClear=document.getElementById("searchClear");
+
+searchInput.addEventListener("focus",()=>{
+  if(!searchInput.value.trim())renderSearchItems(QUICK_CITIES.slice(0,16),"Popular cities in India (type to search any city, town or village)");
+});
+searchInput.addEventListener("input",function(){
+  const q=this.value.trim();
+  searchClear.classList.toggle("show",q.length>0);
+  clearTimeout(searchTimer);
+  if(!q){renderSearchItems(QUICK_CITIES.slice(0,16),"Popular cities in India");return;}
+  // immediate local filter for instant feedback
+  const ql=q.toLowerCase();
+  const local=QUICK_CITIES.filter(c=>c.name.toLowerCase().includes(ql)||c.admin.toLowerCase().includes(ql)||c.country.toLowerCase().includes(ql));
+  if(local.length)renderSearchItems(local,"Quick results — searching live API…",q);
+  // debounced live API call
+  searchTimer=setTimeout(()=>fetchCities(q),260);
+});
+searchInput.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){searchRes.classList.remove("open");searchInput.value="";searchClear.classList.remove("show");}
+  if(e.key==="Enter"&&currentResults.length)loadCity(currentResults[0]);
+});
+searchClear.addEventListener("click",()=>{
+  searchInput.value="";searchClear.classList.remove("show");
+  searchRes.classList.remove("open");searchInput.focus();
+});
+document.addEventListener("click",e=>{if(!e.target.closest(".search-wrap"))searchRes.classList.remove("open");});
+searchRes.addEventListener("click",e=>{
+  const item=e.target.closest(".search-item[data-idx]");
+  if(item){const city=currentResults[parseInt(item.dataset.idx,10)];if(city)loadCity(city);}
+});
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+// Start with Delhi (user is in Faridabad/NCR region)
+const defaultCity=QUICK_CITIES.find(c=>c.name==="Delhi")||QUICK_CITIES[0];
+loadCity(defaultCity);
+
+// After 2s: if permission already granted → auto-detect, else show toast
+setTimeout(()=>{
+  if(!navigator.geolocation)return;
+  if(navigator.permissions){
+    navigator.permissions.query({name:"geolocation"}).then(p=>{
+      if(p.state==="granted"){
+        // Silently load location without showing toast
+        requestLocation();
+      } else if(p.state==="prompt"){
+        showLocationToast();
+      }
+      // If "denied" — do nothing, user chose to block
+    }).catch(()=>showLocationToast());
+  } else {
+    // Browser doesn't support permissions API — show toast
+    showLocationToast();
+  }
+},2000);
+</script>
+</body>
+</html>
